@@ -1,7 +1,7 @@
 /**
  * Backend origin for the local FastAPI server. Used when no override is set.
  */
-const DEFAULT_BACKEND_BASE_URL = "http://127.0.0.1:8000";
+const DEFAULT_BACKEND_BASE_URL = "https://job-copilot-beta-production.up.railway.app";
 
 /**
  * Optional override (e.g. from chrome.storage.local). Null/empty → use default.
