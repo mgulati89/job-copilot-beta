@@ -1,0 +1,171 @@
+# ══════════════════════════════════════════════════════════════════════════════
+# Job Copilot — Configuration
+# Fill in the "user" section below. Everything else can stay as-is for beta.
+# ══════════════════════════════════════════════════════════════════════════════
+
+user:
+  # Your full name — used in outreach message sign-offs
+  name: "Your Name"
+
+  # One sentence describing your background and positioning.
+  # This is used verbatim in outreach messages, so write it the way you'd say it.
+  # Example: "I've spent the last five years in finance ops and FP&A, focusing on
+  #   budgeting, forecasting, and executive reporting."
+  profile_one_liner: ""
+
+  # 3–6 themes that describe your experience — used to calibrate scoring signals.
+  # Write them as short phrases, not sentences.
+  # Examples:
+  #   - "financial planning and analysis"
+  #   - "budget management and forecasting"
+  #   - "cross-functional program delivery"
+  #   - "data analysis and reporting"
+  background_themes: []
+
+# ── Resume Variants ───────────────────────────────────────────────────────────
+# Map each scoring role category to the resume file you want recommended.
+# Drop your PDF resume(s) into the resumes/ folder, then enter the filename
+# (without .pdf) next to the role type that best fits that resume.
+#
+# You can use the same file for multiple categories, or leave categories
+# blank to use the default.
+#
+# Example (for a finance background):
+#   strategic_ops: finance_ops_resume
+#   revops: finance_ops_resume
+#   chief_of_staff: leadership_resume
+#   cx_enablement: general_resume
+#   default: general_resume
+#
+resume_mapping:
+  strategic_ops: ""       # Strategy, BizOps, GTM operations roles
+  revops: ""              # Revenue Operations, Sales Ops roles
+  chief_of_staff: ""      # Chief of Staff, Office of CEO/COO roles
+  cx_enablement: ""       # Customer success, enablement, transformation roles
+  default: ""             # Fallback for anything else
+
+# ── Scoring thresholds ────────────────────────────────────────────────────────
+# These control when the extension shows "Apply", "Review", or "Skip".
+# You can tune these after a few runs, but the defaults are a good starting point.
+scoring:
+  apply_threshold: 80     # Score >= this → "Apply Now"
+  review_threshold: 70    # Score >= this → "Review"
+
+  # Your target salary range in USD. Used to boost/penalise roles based on
+  # listed compensation. Set to 0 / 0 to disable salary scoring.
+  salary_floor: 0
+  ideal_salary_min: 0
+  ideal_salary_max: 0
+
+  # The minimum title level you'd consider. The scorer penalises roles below this.
+  # Options: "Analyst", "Manager", "Senior Manager", "Director", "VP"
+  title_floor: "Manager"
+
+  work_mode_preference:
+    hybrid: 5
+    remote: 4
+    onsite: 2
+
+  penalties:
+    below_title_floor: -12
+    weak_fallback_match: -6
+    clear_function_mismatch: -10
+    comp_below_floor: -14
+
+  comp_rules:
+    above_250k: 10
+    between_150k_250k: 8
+    between_130k_149k: -6
+    below_130k: -14
+
+  title_rules:
+    senior_manager: 0
+    director: 8
+    senior_director: 10
+    chief_of_staff: 8
+    manager: -6
+
+  # ── Keyword groups ──────────────────────────────────────────────────────────
+  # These are the signal clusters the scorer uses to classify a job's role family.
+  # The defaults below work well for ops/GTM/strategy roles.
+  # If your background is in a different field, replace or extend these lists.
+  keyword_groups:
+    strategic_ops:
+      - "strategic operations"
+      - "business operations"
+      - "gtm"
+      - "go-to-market"
+      - "operating model"
+      - "operating cadence"
+      - "decision systems"
+      - "executive reporting"
+      - "executive partnership"
+      - "program leadership"
+      - "cross-functional"
+      - "process redesign"
+      - "transformation"
+      - "scale"
+
+    revops:
+      - "revenue operations"
+      - "sales operations"
+      - "gtm operations"
+      - "pipeline"
+      - "forecasting"
+      - "crm"
+      - "salesforce"
+      - "lead routing"
+      - "incentive design"
+      - "commercial operations"
+
+    chief_of_staff:
+      - "chief of staff"
+      - "office of the ceo"
+      - "office of the coo"
+      - "strategic initiatives"
+      - "leadership priorities"
+      - "board materials"
+      - "executive cadence"
+
+    fallback_cx:
+      - "customer experience"
+      - "enablement"
+      - "customer success"
+      - "retention"
+      - "onboarding"
+      - "voice of customer"
+
+    sales_execution:
+      - "account executive"
+      - "closing deals"
+      - "quota"
+      - "hunter"
+      - "outbound sales"
+      - "full cycle sales"
+      - "commission"
+      - "bdr"
+      - "sdr"
+      - "field sales"
+      - "territory sales"
+      - "new logos"
+      - "pipeline generation"
+      - "prospecting"
+      - "cold outreach"
+
+# ── Notion status labels ──────────────────────────────────────────────────────
+# These are the status options that appear in your Notion database.
+# Don't change these unless you update the Notion database schema to match.
+status:
+  - New
+  - Scored
+  - Shortlisted
+  - Ready to Apply
+  - Needs Review
+  - Applied Pending Confirmation
+  - Applied Confirmed
+  - Recruiter Contact
+  - Interviewing
+  - Final Round
+  - Offer
+  - Rejected
+  - Withdrawn

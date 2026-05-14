@@ -1,0 +1,53 @@
+{
+  "manifest_version": 3,
+  "name": "Job Copilot",
+  "version": "1.0.1778111533",
+  "description": "Analyze jobs instantly",
+  "permissions": [
+    "activeTab",
+    "scripting",
+    "tabs",
+    "storage"
+  ],
+  "host_permissions": [
+    "http://127.0.0.1:8000/*",
+    "http://localhost:8000/*",
+    "*://*.linkedin.com/*",
+    "*://linkedin.com/*",
+    "*://*.greenhouse.io/*",
+    "*://*.lever.co/*",
+    "*://*.ashbyhq.com/*",
+    "*://*.workable.com/*",
+    "*://*.myworkdayjobs.com/*",
+    "*://*.welcometothejungle.com/*"
+  ],
+  "action": {
+    "default_popup": "popup.html"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "*://*.linkedin.com/jobs/*",
+        "*://linkedin.com/jobs/*"
+      ],
+      "js": [
+        "api-config.js",
+        "content.js"
+      ]
+    },
+    {
+      "matches": [
+        "*://*.greenhouse.io/*",
+        "*://*.lever.co/*",
+        "*://*.ashbyhq.com/*",
+        "*://*.workable.com/*",
+        "*://*.myworkdayjobs.com/*",
+        "*://*.welcometothejungle.com/*"
+      ],
+      "js": [
+        "cross-board.js"
+      ],
+      "run_at": "document_idle"
+    }
+  ]
+}

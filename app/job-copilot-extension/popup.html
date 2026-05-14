@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>Job Copilot</title>
+    <style>
+      .outreach-container {
+        max-height: 200px;
+        overflow-y: auto;
+        white-space: pre-wrap;
+        word-break: break-word;
+        font-size: 13px;
+        color: #333;
+        padding: 6px 8px;
+        border: 1px solid #e5e7eb;
+        border-radius: 6px;
+        background: #fafafa;
+      }
+      .outreach-container.expanded {
+        max-height: none;
+      }
+    </style>
+  </head>
+  <body style="font-family: system-ui, -apple-system, Segoe UI, Arial, sans-serif; width: 320px; padding: 10px 12px 12px;">
+    <h3 style="margin: 0 0 8px; color: #111827; font-size: 16px;">Job Copilot</h3>
+
+    <label
+      style="font-size: 11px; color: #6b7280; display: flex; align-items: center; gap: 6px; margin-bottom: 8px; cursor: pointer; user-select: none;"
+    >
+      <input type="checkbox" id="jcDebugToggle" />
+      Debug
+    </label>
+    <div
+      id="jcDebugPanel"
+      style="display: none; font-size: 10px; color: #475569; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 4px; padding: 6px; margin-bottom: 8px; max-height: 100px; overflow: auto; white-space: pre-wrap; word-break: break-word;"
+      aria-live="polite"
+    ></div>
+
+    <div id="jobPreview" style="margin-bottom: 8px; font-size: 14px; line-height: 1.45;"></div>
+
+    <div id="result" style="font-size: 13px; line-height: 1.45;"></div>
+
+    <div id="actions" style="display: none; font-size: 13px;">
+      <div style="margin-top: 10px;">
+        <strong>Status:</strong><br />
+        <button class="status-btn" data-status="New">New</button>
+        <button class="status-btn" data-status="Reviewing">Reviewing</button>
+        <button class="status-btn" data-status="Applied">Applied</button>
+        <button class="status-btn" data-status="Skipped">Skipped</button>
+      </div>
+
+      <div style="margin-top: 10px;">
+        <button id="copyOutreach" type="button">Copy Outreach</button>
+      </div>
+    </div>
+
+    <script src="api-config.js"></script>
+    <script src="popup.js"></script>
+  </body>
+</html>

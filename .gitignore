@@ -1,0 +1,27 @@
+# Credentials — never commit these
+.env
+
+# Resume PDFs — personal, never commit
+resumes/*.pdf
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+*.egg-info/
+dist/
+build/
+
+# Logs
+logs/
+*.log
+
+# macOS
+.DS_Store
+
+# IDE
+.cursor/
+.idea/
+.vscode/
