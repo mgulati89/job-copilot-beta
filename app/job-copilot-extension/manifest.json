@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "Fieldwork",
-  "version": "1.0.1778111533",
-  "description": "Analyze jobs instantly",
+  "name": "Fieldwork [Beta]",
+  "version": "2.0.0",
+  "description": "Beta build — Railway backend",
   "permissions": [
     "activeTab",
     "scripting",
