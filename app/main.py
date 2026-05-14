@@ -508,6 +508,7 @@ def generate_outreach(
             job, apply_t, review_t,
             relationship=rel,
             user_relationship_flag=p.user_relationship_flag,
+            user_profile=p.user_profile,
         )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
@@ -694,6 +695,7 @@ def score_job_endpoint(payload: ScoreJobRequest) -> ScoreJobResponse:
             company=payload.company,
             job_description=payload.job_description,
             location=payload.location,
+            user_profile=payload.user_profile,
         )
     )
 
@@ -725,6 +727,7 @@ def score_and_create_job(payload: ScoreJobRequest, response: Response):
                     company=company_eff,
                     job_description=payload.job_description,
                     location=payload.location,
+                    user_profile=payload.user_profile,
                 )
                 now = datetime.now(timezone.utc)
                 refreshed = by_lid.model_copy(
@@ -788,6 +791,7 @@ def score_and_create_job(payload: ScoreJobRequest, response: Response):
                 company=company_eff,
                 job_description=payload.job_description,
                 location=payload.location,
+                user_profile=payload.user_profile,
             )
         )
 

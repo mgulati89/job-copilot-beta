@@ -85,6 +85,15 @@ class SalaryDebug(BaseModel):
     )
 
 
+class UserProfile(BaseModel):
+    """Per-user identity sent from the extension; supplements app_config.yaml values."""
+
+    name: str = ""
+    one_liner: str = ""
+    background_themes: list[str] = []
+    role_focus: str = ""
+
+
 class JobBase(BaseModel):
     company: str = Field(min_length=1, max_length=200)
     title: str = Field(min_length=1, max_length=200)
@@ -227,6 +236,10 @@ class ScoreJobRequest(BaseModel):
         default=None,
         max_length=128,
         description="Client correlation id for one extension run (observability).",
+    )
+    user_profile: Optional[UserProfile] = Field(
+        default=None,
+        description="Per-user profile from extension settings; overrides app_config.yaml for scoring and outreach.",
     )
 
 
@@ -401,6 +414,10 @@ class GenerateOutreachRequest(BaseModel):
 
     relationship_context: Optional[RelationshipContext] = None
     run_id: Optional[str] = Field(default=None, max_length=128)
+    user_profile: Optional[UserProfile] = Field(
+        default=None,
+        description="Per-user profile from extension settings; overrides app_config.yaml for outreach name/one_liner.",
+    )
     user_relationship_flag: Optional[str] = Field(
         default=None,
         description=(

@@ -1274,6 +1274,8 @@ def score_job(
     company: str,
     job_description: str,
     location: Optional[str] = None,
+    *,
+    user_profile=None,
 ) -> dict:
     cfg = _get_config()
     desc_norm = _normalize(job_description)
@@ -1348,6 +1350,18 @@ def score_job(
         score += _DOMAIN_MISMATCH_PENALTY
         deductions["domain_mismatch"] = _DOMAIN_MISMATCH_PENALTY
         print("[SCORING] domain_mismatch:", domain_mismatch_reason)
+
+    # user_profile theme boost: +3 per theme that appears in JD, capped at +15
+    if user_profile is not None:
+        _themes = getattr(user_profile, "background_themes", None) or []
+        _theme_boost = sum(
+            3 for t in _themes if t.strip().lower() in desc_norm
+        )
+        _theme_boost = min(_theme_boost, 15)
+        if _theme_boost:
+            score += _theme_boost
+            boosts["user_theme_boost"] = _theme_boost
+            print(f"[SCORING] user_theme_boost: +{_theme_boost}")
 
     score_before_cap = score
     score = _apply_sales_execution_group_cap_and_ae_title(

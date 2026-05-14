@@ -2,6 +2,108 @@ const resultDiv = document.getElementById("result");
 const previewDiv = document.getElementById("jobPreview");
 const runBtn = document.getElementById("runBtn");
 
+// ── Settings tab ──────────────────────────────────────────────────────────────
+
+const JC_PROFILE_KEYS = [
+  "jc_user_name",
+  "jc_user_oneliner",
+  "jc_user_themes",
+  "jc_user_role_focus",
+];
+
+function initSettingsTabs() {
+  document.querySelectorAll(".jc-tab").forEach((tab) => {
+    tab.addEventListener("click", () => {
+      const target = tab.dataset.tab;
+      document.querySelectorAll(".jc-tab").forEach((t) =>
+        t.classList.toggle("active", t.dataset.tab === target)
+      );
+      document.querySelectorAll(".jc-tab-panel").forEach((p) =>
+        p.classList.toggle("active", p.id === `tab-${target}`)
+      );
+    });
+  });
+}
+
+function loadProfileForm() {
+  if (typeof chrome === "undefined" || !chrome.storage?.local) return;
+  chrome.storage.local.get(JC_PROFILE_KEYS, (items) => {
+    const nameEl = document.getElementById("jcSettingName");
+    const oneEl = document.getElementById("jcSettingOneliner");
+    const themesEl = document.getElementById("jcSettingThemes");
+    const focusEl = document.getElementById("jcSettingRoleFocus");
+    if (nameEl) nameEl.value = items.jc_user_name || "";
+    if (oneEl) oneEl.value = items.jc_user_oneliner || "";
+    if (themesEl) themesEl.value = items.jc_user_themes || "";
+    if (focusEl) focusEl.value = items.jc_user_role_focus || "";
+  });
+}
+
+function initSaveSettings() {
+  const btn = document.getElementById("jcSaveSettings");
+  const status = document.getElementById("jcSaveStatus");
+  if (!btn) return;
+  btn.addEventListener("click", () => {
+    const name = (document.getElementById("jcSettingName")?.value || "").trim();
+    const oneliner = (document.getElementById("jcSettingOneliner")?.value || "").trim();
+    const themes = (document.getElementById("jcSettingThemes")?.value || "").trim();
+    const roleFocus = (document.getElementById("jcSettingRoleFocus")?.value || "").trim();
+    if (typeof chrome !== "undefined" && chrome.storage?.local) {
+      chrome.storage.local.set(
+        {
+          jc_user_name: name,
+          jc_user_oneliner: oneliner,
+          jc_user_themes: themes,
+          jc_user_role_focus: roleFocus,
+        },
+        () => {
+          if (status) {
+            status.textContent = "Saved ✓";
+            setTimeout(() => { status.textContent = ""; }, 2000);
+          }
+          // Refresh the profile reminder in the analyze tab
+          _updateProfileReminder({ jc_user_name: name, jc_user_oneliner: oneliner,
+            jc_user_themes: themes, jc_user_role_focus: roleFocus });
+        }
+      );
+    }
+  });
+}
+
+function _updateProfileReminder(items) {
+  const el = document.getElementById("jcProfileReminder");
+  if (!el) return;
+  const hasProfile = !!(items.jc_user_name || items.jc_user_oneliner || items.jc_user_themes);
+  el.style.display = hasProfile ? "none" : "block";
+}
+
+function initProfileReminder() {
+  if (typeof chrome === "undefined" || !chrome.storage?.local) return;
+  chrome.storage.local.get(JC_PROFILE_KEYS, (items) => _updateProfileReminder(items));
+}
+
+/** Build UserProfile object from storage, or return null if nothing saved. */
+function jcGetUserProfile(callback) {
+  if (typeof chrome === "undefined" || !chrome.storage?.local) {
+    callback(null);
+    return;
+  }
+  chrome.storage.local.get(JC_PROFILE_KEYS, (items) => {
+    const name = (items.jc_user_name || "").trim();
+    const oneliner = (items.jc_user_oneliner || "").trim();
+    const themesRaw = (items.jc_user_themes || "").trim();
+    const roleFocus = (items.jc_user_role_focus || "").trim();
+    if (!name && !oneliner && !themesRaw && !roleFocus) {
+      callback(null);
+      return;
+    }
+    const themes = themesRaw
+      ? themesRaw.split("\n").map((t) => t.trim()).filter(Boolean)
+      : [];
+    callback({ name, one_liner: oneliner, background_themes: themes, role_focus: roleFocus });
+  });
+}
+
 const JC_DEBUG_STORAGE_KEY = "jc_debug_verbose";
 
 function jcDebugEnabled() {
@@ -134,12 +236,14 @@ function cleanJobTitle(title) {
 /**
  * POST /score-and-create-job via content script. Use bypassScoreCreateDedupe when
  * recovering from stale ephemeral job ids (404 on /jobs/{id}/...) so the real POST runs.
+ * userProfile is the resolved UserProfile object (or null) from chrome.storage.
  */
 function jcPopupScoreAndCreateJob(
   tabId,
   jobData,
   effectiveLinkedInJobId,
-  opts
+  opts,
+  userProfile
 ) {
   const normalizedTitleForApi = jobNormalizedTitleFromPayload(jobData);
   const msg = {
@@ -159,6 +263,7 @@ function jcPopupScoreAndCreateJob(
         new Date().toISOString(),
       description_contaminated: !!jobData.description_contaminated,
       extraction_debug: jobData.extraction_debug || null,
+      user_profile: userProfile || null,
     },
   };
   if (opts && opts.bypassScoreCreateDedupe) {
@@ -869,6 +974,9 @@ async function runCopilot() {
       return;
     }
 
+    // Fetch user profile once — used for scoring and outreach requests
+    const activeUserProfile = await new Promise((res) => jcGetUserProfile(res));
+
     let createResPayload;
     try {
       phase = "score_and_create";
@@ -887,7 +995,8 @@ async function runCopilot() {
         tabIdForCreate,
         jobData,
         effectiveLinkedInJobId,
-        null
+        null,
+        activeUserProfile
       );
       jcDbg("[JC STEP] popup received SCORE_AND_CREATE_JOB response", createResPayload);
     } catch (e) {
@@ -1040,7 +1149,8 @@ async function runCopilot() {
           tabIdForCreate,
           jobData,
           effectiveLinkedInJobId,
-          { bypassScoreCreateDedupe: true }
+          { bypassScoreCreateDedupe: true },
+          activeUserProfile
         );
       } catch (e) {
         jcDbgError("content script sendMessage failed on 404 retry", e);
@@ -1126,6 +1236,7 @@ async function runCopilot() {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               relationship_context: jobData.relationship_context || null,
+              user_profile: activeUserProfile || null,
             }),
           })
             .then(async (r) =>
@@ -1726,6 +1837,10 @@ async function runCopilot() {
 
 (function bootstrapPopup() {
   initJcDebugToggle();
+  initSettingsTabs();
+  loadProfileForm();
+  initSaveSettings();
+  initProfileReminder();
   void runCopilot().catch((err) => {
     jcDbgError("runCopilot failed", err);
     jcFatal(err);

@@ -19,39 +19,178 @@
       .outreach-container.expanded {
         max-height: none;
       }
+
+      /* ── Tab bar ─────────────────────────────────────────── */
+      .jc-tabs {
+        display: flex;
+        gap: 0;
+        border-bottom: 1px solid #e5e7eb;
+        margin-bottom: 10px;
+      }
+      .jc-tab {
+        padding: 5px 14px;
+        font-size: 12px;
+        font-weight: 600;
+        color: #6b7280;
+        cursor: pointer;
+        border: none;
+        background: none;
+        border-bottom: 2px solid transparent;
+        margin-bottom: -1px;
+      }
+      .jc-tab.active {
+        color: #111827;
+        border-bottom-color: #2563eb;
+      }
+      .jc-tab-panel { display: none; }
+      .jc-tab-panel.active { display: block; }
+
+      /* ── Settings form ───────────────────────────────────── */
+      .jc-field { margin-bottom: 10px; }
+      .jc-label {
+        display: block;
+        font-size: 11px;
+        font-weight: 600;
+        color: #374151;
+        margin-bottom: 3px;
+      }
+      .jc-input, .jc-textarea, .jc-select {
+        width: 100%;
+        box-sizing: border-box;
+        font-size: 12px;
+        padding: 5px 7px;
+        border: 1px solid #d1d5db;
+        border-radius: 5px;
+        font-family: inherit;
+        color: #111827;
+        background: #fff;
+      }
+      .jc-textarea { resize: vertical; min-height: 52px; }
+      .jc-save-btn {
+        width: 100%;
+        padding: 7px;
+        font-size: 13px;
+        font-weight: 600;
+        color: #fff;
+        background: #2563eb;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        margin-top: 4px;
+      }
+      .jc-save-btn:hover { background: #1d4ed8; }
+      .jc-save-status {
+        font-size: 11px;
+        color: #16a34a;
+        text-align: center;
+        margin-top: 5px;
+        min-height: 16px;
+      }
+      .jc-profile-reminder {
+        font-size: 12px;
+        color: #92400e;
+        background: #fffbeb;
+        border: 1px solid #fcd34d;
+        border-radius: 6px;
+        padding: 6px 8px;
+        margin-bottom: 8px;
+      }
     </style>
   </head>
   <body style="font-family: system-ui, -apple-system, Segoe UI, Arial, sans-serif; width: 320px; padding: 10px 12px 12px;">
     <h3 style="margin: 0 0 8px; color: #111827; font-size: 16px;">Job Copilot</h3>
 
-    <label
-      style="font-size: 11px; color: #6b7280; display: flex; align-items: center; gap: 6px; margin-bottom: 8px; cursor: pointer; user-select: none;"
-    >
-      <input type="checkbox" id="jcDebugToggle" />
-      Debug
-    </label>
-    <div
-      id="jcDebugPanel"
-      style="display: none; font-size: 10px; color: #475569; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 4px; padding: 6px; margin-bottom: 8px; max-height: 100px; overflow: auto; white-space: pre-wrap; word-break: break-word;"
-      aria-live="polite"
-    ></div>
+    <!-- Tab bar -->
+    <div class="jc-tabs">
+      <button class="jc-tab active" data-tab="analyze">Analyze</button>
+      <button class="jc-tab" data-tab="settings">Settings</button>
+    </div>
 
-    <div id="jobPreview" style="margin-bottom: 8px; font-size: 14px; line-height: 1.45;"></div>
-
-    <div id="result" style="font-size: 13px; line-height: 1.45;"></div>
-
-    <div id="actions" style="display: none; font-size: 13px;">
-      <div style="margin-top: 10px;">
-        <strong>Status:</strong><br />
-        <button class="status-btn" data-status="New">New</button>
-        <button class="status-btn" data-status="Reviewing">Reviewing</button>
-        <button class="status-btn" data-status="Applied">Applied</button>
-        <button class="status-btn" data-status="Skipped">Skipped</button>
+    <!-- ── Analyze tab ─────────────────────────────────────── -->
+    <div id="tab-analyze" class="jc-tab-panel active">
+      <div id="jcProfileReminder" class="jc-profile-reminder" style="display:none;">
+        Add your profile in Settings for personalised results.
       </div>
 
-      <div style="margin-top: 10px;">
-        <button id="copyOutreach" type="button">Copy Outreach</button>
+      <label
+        style="font-size: 11px; color: #6b7280; display: flex; align-items: center; gap: 6px; margin-bottom: 8px; cursor: pointer; user-select: none;"
+      >
+        <input type="checkbox" id="jcDebugToggle" />
+        Debug
+      </label>
+      <div
+        id="jcDebugPanel"
+        style="display: none; font-size: 10px; color: #475569; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 4px; padding: 6px; margin-bottom: 8px; max-height: 100px; overflow: auto; white-space: pre-wrap; word-break: break-word;"
+        aria-live="polite"
+      ></div>
+
+      <div id="jobPreview" style="margin-bottom: 8px; font-size: 14px; line-height: 1.45;"></div>
+
+      <div id="result" style="font-size: 13px; line-height: 1.45;"></div>
+
+      <div id="actions" style="display: none; font-size: 13px;">
+        <div style="margin-top: 10px;">
+          <strong>Status:</strong><br />
+          <button class="status-btn" data-status="New">New</button>
+          <button class="status-btn" data-status="Reviewing">Reviewing</button>
+          <button class="status-btn" data-status="Applied">Applied</button>
+          <button class="status-btn" data-status="Skipped">Skipped</button>
+        </div>
+
+        <div style="margin-top: 10px;">
+          <button id="copyOutreach" type="button">Copy Outreach</button>
+        </div>
       </div>
+    </div>
+
+    <!-- ── Settings tab ────────────────────────────────────── -->
+    <div id="tab-settings" class="jc-tab-panel">
+      <div class="jc-field">
+        <label class="jc-label" for="jcSettingName">Your name</label>
+        <input
+          type="text"
+          id="jcSettingName"
+          class="jc-input"
+          placeholder="e.g. Alex Johnson"
+        />
+      </div>
+
+      <div class="jc-field">
+        <label class="jc-label" for="jcSettingOneliner">One-liner about your background</label>
+        <textarea
+          id="jcSettingOneliner"
+          class="jc-textarea"
+          rows="2"
+          placeholder="e.g. I've spent the last six years in RevOps, owning Salesforce architecture and GTM planning at Series B–D companies."
+        ></textarea>
+      </div>
+
+      <div class="jc-field">
+        <label class="jc-label" for="jcSettingThemes">
+          Background themes
+          <span style="font-weight:400; color:#6b7280;">(one per line)</span>
+        </label>
+        <textarea
+          id="jcSettingThemes"
+          class="jc-textarea"
+          rows="3"
+          placeholder="revenue operations&#10;GTM strategy&#10;cross-functional execution"
+        ></textarea>
+      </div>
+
+      <div class="jc-field">
+        <label class="jc-label" for="jcSettingRoleFocus">Primary role focus</label>
+        <select id="jcSettingRoleFocus" class="jc-select">
+          <option value="">— select —</option>
+          <option value="RevOps / GTM Ops">RevOps / GTM Ops</option>
+          <option value="Business / Strategic Ops">Business / Strategic Ops</option>
+          <option value="Chief of Staff">Chief of Staff</option>
+          <option value="CX / Enablement">CX / Enablement</option>
+        </select>
+      </div>
+
+      <button id="jcSaveSettings" class="jc-save-btn" type="button">Save</button>
+      <div id="jcSaveStatus" class="jc-save-status"></div>
     </div>
 
     <script src="api-config.js"></script>

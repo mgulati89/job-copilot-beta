@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+from contextvars import ContextVar
 from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
@@ -400,8 +401,12 @@ _JD_FRAGMENT_MARKERS = (
 )
 
 
+# Holds the per-request UserProfile override (set by generate_outreach_for_job).
+_request_user_profile: ContextVar = ContextVar("_request_user_profile", default=None)
+
+
 @lru_cache(maxsize=1)
-def _load_user_context() -> dict:
+def _load_user_context_from_yaml() -> dict:
     raw = yaml.safe_load(_CONFIG_PATH.read_text(encoding="utf-8"))
     u = raw.get("user") or {}
     name = str(u.get("name") or "Mayank").strip()
@@ -411,6 +416,23 @@ def _load_user_context() -> dict:
         "signoff_name": first,
         "profile_one_liner": str(u.get("profile_one_liner") or "").strip(),
     }
+
+
+def _load_user_context() -> dict:
+    """Returns user context; per-request user_profile overrides yaml values when set."""
+    base = _load_user_context_from_yaml()
+    up = _request_user_profile.get()
+    if up is None:
+        return base
+    overrides: dict = {}
+    name = (getattr(up, "name", None) or "").strip()
+    if name:
+        overrides["name"] = name
+        overrides["signoff_name"] = name.split()[0]
+    one_liner = (getattr(up, "one_liner", None) or "").strip()
+    if one_liner:
+        overrides["profile_one_liner"] = one_liner
+    return {**base, **overrides} if overrides else base
 
 
 def _word_count(text: str) -> int:
@@ -1331,6 +1353,28 @@ def _apply_user_relationship_flag(
 
 
 def generate_outreach_for_job(
+    job: JobRead,
+    apply_threshold: int,
+    review_threshold: int,
+    *,
+    relationship: Optional[HiringRelationshipContext] = None,
+    user_relationship_flag: Optional[str] = None,
+    user_profile=None,
+) -> GenerateOutreachResponse:
+    token = _request_user_profile.set(user_profile)
+    try:
+        return _generate_outreach_for_job_inner(
+            job,
+            apply_threshold,
+            review_threshold,
+            relationship=relationship,
+            user_relationship_flag=user_relationship_flag,
+        )
+    finally:
+        _request_user_profile.reset(token)
+
+
+def _generate_outreach_for_job_inner(
     job: JobRead,
     apply_threshold: int,
     review_threshold: int,
