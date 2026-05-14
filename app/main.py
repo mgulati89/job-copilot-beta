@@ -132,6 +132,11 @@ app.add_middleware(
 app.add_middleware(LogScoreAndCreateBodyMiddleware)
 
 
+@app.get("/", include_in_schema=False)
+def health_check():
+    return {"status": "ok"}
+
+
 @app.exception_handler(RequestValidationError)
 async def request_validation_exception_handler(
     request: Request, exc: RequestValidationError
