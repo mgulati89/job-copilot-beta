@@ -9,6 +9,7 @@ const JC_PROFILE_KEYS = [
   "jc_user_oneliner",
   "jc_user_themes",
   "jc_user_role_focus",
+  "jc_user_seniority",
 ];
 
 function initSettingsTabs() {
@@ -32,10 +33,12 @@ function loadProfileForm() {
     const oneEl = document.getElementById("jcSettingOneliner");
     const themesEl = document.getElementById("jcSettingThemes");
     const focusEl = document.getElementById("jcSettingRoleFocus");
+    const seniorityEl = document.getElementById("jcSettingSeniority");
     if (nameEl) nameEl.value = items.jc_user_name || "";
     if (oneEl) oneEl.value = items.jc_user_oneliner || "";
     if (themesEl) themesEl.value = items.jc_user_themes || "";
     if (focusEl) focusEl.value = items.jc_user_role_focus || "";
+    if (seniorityEl) seniorityEl.value = items.jc_user_seniority || "";
   });
 }
 
@@ -48,6 +51,7 @@ function initSaveSettings() {
     const oneliner = (document.getElementById("jcSettingOneliner")?.value || "").trim();
     const themes = (document.getElementById("jcSettingThemes")?.value || "").trim();
     const roleFocus = (document.getElementById("jcSettingRoleFocus")?.value || "").trim();
+    const seniority = (document.getElementById("jcSettingSeniority")?.value || "").trim();
     if (typeof chrome !== "undefined" && chrome.storage?.local) {
       chrome.storage.local.set(
         {
@@ -55,6 +59,7 @@ function initSaveSettings() {
           jc_user_oneliner: oneliner,
           jc_user_themes: themes,
           jc_user_role_focus: roleFocus,
+          jc_user_seniority: seniority,
         },
         () => {
           if (status) {
@@ -63,7 +68,7 @@ function initSaveSettings() {
           }
           // Refresh the profile reminder in the analyze tab
           _updateProfileReminder({ jc_user_name: name, jc_user_oneliner: oneliner,
-            jc_user_themes: themes, jc_user_role_focus: roleFocus });
+            jc_user_themes: themes, jc_user_role_focus: roleFocus, jc_user_seniority: seniority });
         }
       );
     }
@@ -93,14 +98,15 @@ function jcGetUserProfile(callback) {
     const oneliner = (items.jc_user_oneliner || "").trim();
     const themesRaw = (items.jc_user_themes || "").trim();
     const roleFocus = (items.jc_user_role_focus || "").trim();
-    if (!name && !oneliner && !themesRaw && !roleFocus) {
+    const seniority = (items.jc_user_seniority || "").trim();
+    if (!name && !oneliner && !themesRaw && !roleFocus && !seniority) {
       callback(null);
       return;
     }
     const themes = themesRaw
       ? themesRaw.split("\n").map((t) => t.trim()).filter(Boolean)
       : [];
-    callback({ name, one_liner: oneliner, background_themes: themes, role_focus: roleFocus });
+    callback({ name, one_liner: oneliner, background_themes: themes, role_focus: roleFocus, seniority });
   });
 }
 
@@ -1380,7 +1386,7 @@ async function runCopilot() {
 
     const resumeLine = document.createElement("div");
     resumeLine.style.fontSize = "14px";
-    resumeLine.innerHTML = `<b>Resume:</b> ${job.recommended_resume_variant}`;
+    resumeLine.innerHTML = `<b>Resume:</b> ${job.resume_recommendation_display || job.recommended_resume_variant}`;
 
     rec.appendChild(priorityLine);
 

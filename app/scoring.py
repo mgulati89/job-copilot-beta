@@ -637,7 +637,9 @@ def _clear_revops_system_signals(
     return False
 
 
-def _detect_domain_mismatch(full_norm: str) -> tuple[bool, str | None]:
+def _detect_domain_mismatch(
+    full_norm: str, user_profile=None
+) -> tuple[bool, str | None]:
     """
     Returns (mismatch, reason_str).
 
@@ -647,12 +649,24 @@ def _detect_domain_mismatch(full_norm: str) -> tuple[bool, str | None]:
     Override logic: if the JD contains SaaS / Salesforce / HubSpot / CRM language it is
     almost certainly the *tech-vendor* side of that industry (e.g. a SaaS company selling
     into healthcare), not the legacy domain ops role — so no penalty applies.
+
+    User-profile override: if the user's own background themes or role_focus contain words
+    that overlap with the flagged domain cluster, treat it as alignment — not a mismatch.
     """
     if any(sig in full_norm for sig in _DOMAIN_MISMATCH_OVERRIDE):
         return False, None
+
+    user_context = ""
+    if user_profile is not None:
+        themes = " ".join(getattr(user_profile, "background_themes", []) or [])
+        role_focus = getattr(user_profile, "role_focus", "") or ""
+        user_context = (themes + " " + role_focus).lower()
+
     for _key, (terms, reason) in _DOMAIN_CLUSTERS.items():
         hits = sum(1 for t in terms if t in full_norm)
         if hits >= _DOMAIN_MISMATCH_MIN_HITS:
+            if user_context and any(t in user_context for t in terms):
+                return False, None
             return True, reason
     return False, None
 
@@ -1269,6 +1283,21 @@ def _rationale(
     return " ".join(parts)
 
 
+def _resume_display_label(resume: "ResumeVariantId", user_profile=None) -> str:
+    """Plain-English label for the popup. Internal codes are meaningless to non-Mayank testers."""
+    if user_profile is not None:
+        return "Your primary resume"
+    from app.enums import ResumeVariantId as _RVI  # local import avoids circularity
+    label_map = {
+        _RVI.STRATEGIC_OPS_A: "Strategic Ops / RevOps resume",
+        _RVI.CX_OPS_L: "Customer Ops resume",
+        _RVI.CX_C: "CX Enablement resume",
+        _RVI.MASTER_2026: "Executive / Leadership resume",
+        _RVI.REVOPS_Q: "RevOps resume",
+    }
+    return label_map.get(resume, "Primary resume")
+
+
 def score_job(
     title: str,
     company: str,
@@ -1286,6 +1315,19 @@ def score_job(
     winner_group, role = _pick_winner(group_hits)
     hits = group_hits.get(winner_group, 0) if winner_group else 0
     base = _base_score_from_description(winner_group, hits)
+
+    # Fix A: when user has 3+ themes and keyword groups produced no winner, lift the
+    # floor from 48 → 52 — the user's self-identified context carries signal.
+    if (
+        user_profile is not None
+        and (winner_group is None or hits == 0)
+        and len(getattr(user_profile, "background_themes", []) or []) >= 3
+    ):
+        base = max(base, 52)
+        components_base_lift = True
+    else:
+        components_base_lift = False
+
     score = base
 
     components: dict[str, Any] = {
@@ -1294,6 +1336,8 @@ def score_job(
         "group_hits": dict(group_hits),
         "base_score": base,
     }
+    if components_base_lift:
+        components["user_profile_base_lift"] = 52
     boosts: dict[str, int] = {}
     deductions: dict[str, int] = {}
 
@@ -1311,6 +1355,51 @@ def score_job(
         components["title_lead_ops_bonus"] = 3
     score += title_delta
     components["title_rule_delta"] = title_delta
+
+    # Fix C: seniority match/mismatch scoring
+    if user_profile is not None:
+        _seniority = (getattr(user_profile, "seniority", "") or "").lower()
+        if _seniority:
+            _senior_signals = [
+                "director", "senior director", "vp", "vice president",
+                "head of", "principal", "lead",
+            ]
+            _mid_signals = ["manager", "senior manager", "senior"]
+            _ic_signals = [
+                "analyst", "associate", "coordinator", "specialist",
+                "individual contributor",
+            ]
+            if any(s in _seniority for s in ["director", "vp", "vp+"]):
+                if any(p in full_norm for p in _senior_signals):
+                    score += 5
+                    boosts["seniority_match"] = 5
+                elif any(p in full_norm for p in _ic_signals):
+                    score -= 8
+                    deductions["seniority_mismatch_overqualified"] = -8
+            elif "manager" in _seniority:
+                if any(p in full_norm for p in _mid_signals):
+                    score += 4
+                    boosts["seniority_match"] = 4
+                elif any(p in full_norm for p in _senior_signals[:3]):
+                    score -= 5
+                    deductions["seniority_gap_up"] = -5
+            elif any(s in _seniority for s in ["ic", "senior ic", "senior"]):
+                if any(p in full_norm for p in _ic_signals + _mid_signals):
+                    score += 3
+                    boosts["seniority_match"] = 3
+
+    # Fix A: theme boost applied early — before caps/ceilings — so it meaningfully
+    # lifts non-RevOps scores rather than being clipped away downstream.
+    if user_profile is not None:
+        _themes = getattr(user_profile, "background_themes", None) or []
+        _theme_boost = sum(
+            3 for t in _themes if t.strip().lower() in desc_norm
+        )
+        _theme_boost = min(_theme_boost, 15)
+        if _theme_boost:
+            score += _theme_boost
+            boosts["user_theme_boost"] = _theme_boost
+            print(f"[SCORING] user_theme_boost: +{_theme_boost}")
 
     scope_pts, scope_boosts, scope_raw = _scope_alignment_boost(full_norm, title_norm)
     if scope_raw > 14:
@@ -1345,23 +1434,12 @@ def score_job(
     if sales_penalty:
         deductions["sales_execution_signal"] = _SALES_EXECUTION_PENALTY
 
-    domain_mismatch, domain_mismatch_reason = _detect_domain_mismatch(full_norm)
+    # Fix B: pass user_profile so domain clusters aligned with user background don't penalise
+    domain_mismatch, domain_mismatch_reason = _detect_domain_mismatch(full_norm, user_profile)
     if domain_mismatch:
         score += _DOMAIN_MISMATCH_PENALTY
         deductions["domain_mismatch"] = _DOMAIN_MISMATCH_PENALTY
         print("[SCORING] domain_mismatch:", domain_mismatch_reason)
-
-    # user_profile theme boost: +3 per theme that appears in JD, capped at +15
-    if user_profile is not None:
-        _themes = getattr(user_profile, "background_themes", None) or []
-        _theme_boost = sum(
-            3 for t in _themes if t.strip().lower() in desc_norm
-        )
-        _theme_boost = min(_theme_boost, 15)
-        if _theme_boost:
-            score += _theme_boost
-            boosts["user_theme_boost"] = _theme_boost
-            print(f"[SCORING] user_theme_boost: +{_theme_boost}")
 
     score_before_cap = score
     score = _apply_sales_execution_group_cap_and_ae_title(
@@ -1431,6 +1509,7 @@ def score_job(
         "decision": decision,
         "role_family": role,
         "recommended_resume_variant": resume,
+        "resume_recommendation_display": _resume_display_label(resume, user_profile),
         "has_open_ended_questions": open_ended,
         "recommended_action": recommended_action,
         "action_rationale": action_rationale,

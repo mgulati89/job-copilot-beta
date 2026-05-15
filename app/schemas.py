@@ -92,6 +92,7 @@ class UserProfile(BaseModel):
     one_liner: str = ""
     background_themes: list[str] = []
     role_focus: str = ""
+    seniority: str = ""  # "IC" | "Senior IC" | "Manager" | "Director" | "VP+"
 
 
 class JobBase(BaseModel):
@@ -188,6 +189,11 @@ class JobRead(JobBase):
         default=None,
         max_length=200,
         description="Human-readable domain mismatch reason for popup warning banner.",
+    )
+    resume_recommendation_display: str = Field(
+        default="",
+        max_length=200,
+        description="Plain-English resume label for the extension UI.",
     )
 
     model_config = ConfigDict(from_attributes=True)
@@ -587,4 +593,9 @@ class ScoreJobResponse(BaseModel):
         default=None,
         max_length=200,
         description="Human-readable reason for the domain mismatch penalty (for popup display).",
+    )
+    resume_recommendation_display: str = Field(
+        default="",
+        max_length=200,
+        description="Plain-English resume label for the extension UI; 'Your primary resume' for non-internal users.",
     )
