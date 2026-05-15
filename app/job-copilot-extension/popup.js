@@ -33,12 +33,14 @@ function loadProfileForm() {
     const oneEl = document.getElementById("jcSettingOneliner");
     const themesEl = document.getElementById("jcSettingThemes");
     const focusEl = document.getElementById("jcSettingRoleFocus");
-    const seniorityEl = document.getElementById("jcSettingSeniority");
     if (nameEl) nameEl.value = items.jc_user_name || "";
     if (oneEl) oneEl.value = items.jc_user_oneliner || "";
     if (themesEl) themesEl.value = items.jc_user_themes || "";
     if (focusEl) focusEl.value = items.jc_user_role_focus || "";
-    if (seniorityEl) seniorityEl.value = items.jc_user_seniority || "";
+    const saved = items.jc_user_seniority || [];
+    document.querySelectorAll(".jc-seniority-cb").forEach((cb) => {
+      cb.checked = Array.isArray(saved) ? saved.includes(cb.value) : false;
+    });
   });
 }
 
@@ -51,7 +53,7 @@ function initSaveSettings() {
     const oneliner = (document.getElementById("jcSettingOneliner")?.value || "").trim();
     const themes = (document.getElementById("jcSettingThemes")?.value || "").trim();
     const roleFocus = (document.getElementById("jcSettingRoleFocus")?.value || "").trim();
-    const seniority = (document.getElementById("jcSettingSeniority")?.value || "").trim();
+    const seniority = Array.from(document.querySelectorAll(".jc-seniority-cb:checked")).map((cb) => cb.value);
     if (typeof chrome !== "undefined" && chrome.storage?.local) {
       chrome.storage.local.set(
         {
@@ -68,7 +70,7 @@ function initSaveSettings() {
           }
           // Refresh the profile reminder in the analyze tab
           _updateProfileReminder({ jc_user_name: name, jc_user_oneliner: oneliner,
-            jc_user_themes: themes, jc_user_role_focus: roleFocus, jc_user_seniority: seniority });
+            jc_user_themes: themes, jc_user_role_focus: roleFocus });
         }
       );
     }
@@ -98,8 +100,8 @@ function jcGetUserProfile(callback) {
     const oneliner = (items.jc_user_oneliner || "").trim();
     const themesRaw = (items.jc_user_themes || "").trim();
     const roleFocus = (items.jc_user_role_focus || "").trim();
-    const seniority = (items.jc_user_seniority || "").trim();
-    if (!name && !oneliner && !themesRaw && !roleFocus && !seniority) {
+    const seniority = Array.isArray(items.jc_user_seniority) ? items.jc_user_seniority : [];
+    if (!name && !oneliner && !themesRaw && !roleFocus && !seniority.length) {
       callback(null);
       return;
     }

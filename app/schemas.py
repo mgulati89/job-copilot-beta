@@ -92,7 +92,7 @@ class UserProfile(BaseModel):
     one_liner: str = ""
     background_themes: list[str] = []
     role_focus: str = ""
-    seniority: str = ""  # "IC" | "Senior IC" | "Manager" | "Director" | "VP+"
+    seniority: list[str] = []  # any of: "IC", "Senior IC", "Manager", "Director", "VP+"
 
 
 class JobBase(BaseModel):

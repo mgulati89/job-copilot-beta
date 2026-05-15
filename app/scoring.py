@@ -1356,10 +1356,16 @@ def score_job(
     score += title_delta
     components["title_rule_delta"] = title_delta
 
-    # Fix C: seniority match/mismatch scoring
+    # Fix C: seniority match/mismatch scoring (multi-select aware)
     if user_profile is not None:
-        _seniority = (getattr(user_profile, "seniority", "") or "").lower()
-        if _seniority:
+        _seniority_raw = getattr(user_profile, "seniority", None) or []
+        # Normalise: accept both list[str] and legacy str
+        if isinstance(_seniority_raw, str):
+            _seniority_list = [_seniority_raw.strip().lower()] if _seniority_raw.strip() else []
+        else:
+            _seniority_list = [s.strip().lower() for s in _seniority_raw if s.strip()]
+
+        if _seniority_list:
             _senior_signals = [
                 "director", "senior director", "vp", "vice president",
                 "head of", "principal", "lead",
@@ -1369,24 +1375,31 @@ def score_job(
                 "analyst", "associate", "coordinator", "specialist",
                 "individual contributor",
             ]
-            if any(s in _seniority for s in ["director", "vp", "vp+"]):
-                if any(p in full_norm for p in _senior_signals):
-                    score += 5
-                    boosts["seniority_match"] = 5
-                elif any(p in full_norm for p in _ic_signals):
+
+            _jd_is_senior = any(p in full_norm for p in _senior_signals)
+            _jd_is_mid = any(p in full_norm for p in _mid_signals)
+            _jd_is_ic = any(p in full_norm for p in _ic_signals)
+
+            # Boost if JD matches ANY of the selected levels
+            _matched = False
+            for _sl in _seniority_list:
+                if any(s in _sl for s in ["director", "vp", "vp+"]) and _jd_is_senior:
+                    score += 5; boosts["seniority_match"] = 5; _matched = True; break
+                elif "manager" in _sl and _jd_is_mid:
+                    score += 4; boosts["seniority_match"] = 4; _matched = True; break
+                elif any(s in _sl for s in ["ic", "senior ic", "senior"]) and (_jd_is_ic or _jd_is_mid):
+                    score += 3; boosts["seniority_match"] = 3; _matched = True; break
+
+            # Penalise only when JD is clearly outside ALL selected levels
+            if not _matched:
+                _all_senior = all(any(s in sl for s in ["director", "vp", "vp+"]) for sl in _seniority_list)
+                _all_ic = all(any(s in sl for s in ["ic", "senior ic"]) for sl in _seniority_list)
+                if _all_senior and _jd_is_ic:
                     score -= 8
                     deductions["seniority_mismatch_overqualified"] = -8
-            elif "manager" in _seniority:
-                if any(p in full_norm for p in _mid_signals):
-                    score += 4
-                    boosts["seniority_match"] = 4
-                elif any(p in full_norm for p in _senior_signals[:3]):
+                elif _all_ic and _jd_is_senior:
                     score -= 5
                     deductions["seniority_gap_up"] = -5
-            elif any(s in _seniority for s in ["ic", "senior ic", "senior"]):
-                if any(p in full_norm for p in _ic_signals + _mid_signals):
-                    score += 3
-                    boosts["seniority_match"] = 3
 
     # Fix A: theme boost applied early — before caps/ceilings — so it meaningfully
     # lifts non-RevOps scores rather than being clipped away downstream.

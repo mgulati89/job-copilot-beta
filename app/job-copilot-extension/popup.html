@@ -66,6 +66,21 @@
         background: #fff;
       }
       .jc-textarea { resize: vertical; min-height: 52px; }
+      .jc-check-label {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        font-size: 12px;
+        color: #111827;
+        cursor: pointer;
+      }
+      .jc-check-label input[type="checkbox"] {
+        width: 14px;
+        height: 14px;
+        cursor: pointer;
+        accent-color: #2563eb;
+        flex-shrink: 0;
+      }
       .jc-save-btn {
         width: 100%;
         padding: 7px;
@@ -192,15 +207,14 @@
       </div>
 
       <div class="jc-field">
-        <label class="jc-label" for="jcSettingSeniority">Seniority level</label>
-        <select id="jcSettingSeniority" class="jc-select">
-          <option value="">— select —</option>
-          <option value="IC">Individual Contributor (IC)</option>
-          <option value="Senior IC">Senior IC / Lead</option>
-          <option value="Manager">Manager</option>
-          <option value="Director">Director / Senior Director</option>
-          <option value="VP+">VP or above</option>
-        </select>
+        <span class="jc-label">Seniority levels you're targeting</span>
+        <div id="jcSeniorityGroup" style="display:flex; flex-direction:column; gap:5px; margin-top:4px;">
+          <label class="jc-check-label"><input type="checkbox" class="jc-seniority-cb" value="IC"> Individual Contributor (IC)</label>
+          <label class="jc-check-label"><input type="checkbox" class="jc-seniority-cb" value="Senior IC"> Senior IC / Lead</label>
+          <label class="jc-check-label"><input type="checkbox" class="jc-seniority-cb" value="Manager"> Manager</label>
+          <label class="jc-check-label"><input type="checkbox" class="jc-seniority-cb" value="Director"> Director / Senior Director</label>
+          <label class="jc-check-label"><input type="checkbox" class="jc-seniority-cb" value="VP+"> VP or above</label>
+        </div>
       </div>
 
       <button id="jcSaveSettings" class="jc-save-btn" type="button">Save</button>
