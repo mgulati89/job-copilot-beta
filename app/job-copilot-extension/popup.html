@@ -217,6 +217,24 @@
         </div>
       </div>
 
+      <div class="jc-field">
+        <span class="jc-label">Resume (PDF)</span>
+        <div id="jcResumeStatus" style="font-size:11px; color:#888; margin-bottom:6px;">No resume on file</div>
+        <label for="jcResumeFile" id="jcResumeUploadLabel" style="
+          display:inline-block;
+          padding:5px 12px;
+          background:#f5f5f5;
+          border:1px solid #ddd;
+          border-radius:4px;
+          font-size:12px;
+          cursor:pointer;
+          color:#444;
+        ">Upload PDF
+          <input type="file" id="jcResumeFile" accept=".pdf" style="display:none" />
+        </label>
+        <span id="jcResumeSpinner" style="display:none; margin-left:8px; font-size:11px; color:#888;">Parsing…</span>
+      </div>
+
       <button id="jcSaveSettings" class="jc-save-btn" type="button">Save</button>
       <div id="jcSaveStatus" class="jc-save-status"></div>
     </div>

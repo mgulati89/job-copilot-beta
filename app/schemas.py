@@ -93,6 +93,7 @@ class UserProfile(BaseModel):
     background_themes: list[str] = []
     role_focus: str = ""
     seniority: list[str] = []  # any of: "IC", "Senior IC", "Manager", "Director", "VP+"
+    resume_text: str = ""      # parsed text from uploaded PDF; cached client-side
 
 
 class JobBase(BaseModel):

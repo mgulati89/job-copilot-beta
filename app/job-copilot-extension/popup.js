@@ -10,6 +10,7 @@ const JC_PROFILE_KEYS = [
   "jc_user_themes",
   "jc_user_role_focus",
   "jc_user_seniority",
+  "jc_resume_text",
 ];
 
 function initSettingsTabs() {
@@ -24,6 +25,18 @@ function initSettingsTabs() {
       );
     });
   });
+}
+
+function _updateResumeStatus(resumeText) {
+  const el = document.getElementById("jcResumeStatus");
+  if (!el) return;
+  if (resumeText && resumeText.trim().length > 0) {
+    el.textContent = "Resume on file ✓";
+    el.style.color = "#2e7d32";
+  } else {
+    el.textContent = "No resume on file";
+    el.style.color = "#888";
+  }
 }
 
 function loadProfileForm() {
@@ -41,6 +54,7 @@ function loadProfileForm() {
     document.querySelectorAll(".jc-seniority-cb").forEach((cb) => {
       cb.checked = Array.isArray(saved) ? saved.includes(cb.value) : false;
     });
+    _updateResumeStatus(items.jc_resume_text || "");
   });
 }
 
@@ -77,6 +91,52 @@ function initSaveSettings() {
   });
 }
 
+function initResumeUpload() {
+  const fileInput = document.getElementById("jcResumeFile");
+  const spinner = document.getElementById("jcResumeSpinner");
+  const label = document.getElementById("jcResumeUploadLabel");
+  if (!fileInput) return;
+
+  fileInput.addEventListener("change", async () => {
+    const file = fileInput.files[0];
+    if (!file) return;
+    if (!file.name.toLowerCase().endsWith(".pdf")) {
+      alert("Please upload a PDF file.");
+      fileInput.value = "";
+      return;
+    }
+
+    if (spinner) spinner.style.display = "inline";
+    if (label) label.style.opacity = "0.6";
+
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const resp = await fetch(apiUrl("/parse-resume"), {
+        method: "POST",
+        body: formData,
+      });
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({}));
+        throw new Error(err.detail || `HTTP ${resp.status}`);
+      }
+      const data = await resp.json();
+      const text = data.resume_text || "";
+      if (typeof chrome !== "undefined" && chrome.storage?.local) {
+        chrome.storage.local.set({ jc_resume_text: text }, () => {
+          _updateResumeStatus(text);
+        });
+      }
+    } catch (err) {
+      alert(`Resume upload failed: ${err.message}`);
+    } finally {
+      if (spinner) spinner.style.display = "none";
+      if (label) label.style.opacity = "1";
+      fileInput.value = "";
+    }
+  });
+}
+
 function _updateProfileReminder(items) {
   const el = document.getElementById("jcProfileReminder");
   if (!el) return;
@@ -101,14 +161,15 @@ function jcGetUserProfile(callback) {
     const themesRaw = (items.jc_user_themes || "").trim();
     const roleFocus = (items.jc_user_role_focus || "").trim();
     const seniority = Array.isArray(items.jc_user_seniority) ? items.jc_user_seniority : [];
-    if (!name && !oneliner && !themesRaw && !roleFocus && !seniority.length) {
+    const resumeText = (items.jc_resume_text || "").trim();
+    if (!name && !oneliner && !themesRaw && !roleFocus && !seniority.length && !resumeText) {
       callback(null);
       return;
     }
     const themes = themesRaw
       ? themesRaw.split("\n").map((t) => t.trim()).filter(Boolean)
       : [];
-    callback({ name, one_liner: oneliner, background_themes: themes, role_focus: roleFocus, seniority });
+    callback({ name, one_liner: oneliner, background_themes: themes, role_focus: roleFocus, seniority, resume_text: resumeText });
   });
 }
 
@@ -1848,6 +1909,7 @@ async function runCopilot() {
   initSettingsTabs();
   loadProfileForm();
   initSaveSettings();
+  initResumeUpload();
   initProfileReminder();
   void runCopilot().catch((err) => {
     jcDbgError("runCopilot failed", err);

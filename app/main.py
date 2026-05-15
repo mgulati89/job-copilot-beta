@@ -20,7 +20,10 @@ print(
     bool(os.getenv("NOTION_DATABASE_ID")),
 )
 
-from fastapi import BackgroundTasks, Body, FastAPI, HTTPException, Query, Request, Response
+import io
+
+import pdfplumber
+from fastapi import BackgroundTasks, Body, FastAPI, File, HTTPException, Query, Request, Response, UploadFile
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -135,6 +138,31 @@ app.add_middleware(LogScoreAndCreateBodyMiddleware)
 @app.get("/", include_in_schema=False)
 def health_check():
     return {"status": "ok"}
+
+
+_MAX_RESUME_BYTES = 5 * 1024 * 1024  # 5 MB
+
+
+@app.post("/parse-resume", include_in_schema=True)
+async def parse_resume(file: UploadFile = File(...)):
+    """
+    Accept a PDF resume, extract its text, and return it.
+    No server-side storage — caller caches the text client-side.
+    """
+    if not (file.filename or "").lower().endswith(".pdf"):
+        raise HTTPException(status_code=400, detail="Only PDF files are accepted.")
+    contents = await file.read()
+    if len(contents) > _MAX_RESUME_BYTES:
+        raise HTTPException(status_code=400, detail="File too large (max 5 MB).")
+    try:
+        with pdfplumber.open(io.BytesIO(contents)) as pdf:
+            pages = [page.extract_text() or "" for page in pdf.pages]
+        text = "\n".join(pages).strip()
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"PDF parsing failed: {exc}") from exc
+    if not text:
+        raise HTTPException(status_code=400, detail="Could not extract text from this PDF. Ensure it is not scanned/image-only.")
+    return {"resume_text": text, "char_count": len(text)}
 
 
 @app.exception_handler(RequestValidationError)

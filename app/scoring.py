@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+from collections import Counter
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Iterable, Optional
@@ -1283,6 +1284,66 @@ def _rationale(
     return " ".join(parts)
 
 
+_RESUME_STOPWORDS: frozenset[str] = frozenset({
+    "the", "a", "an", "and", "or", "but", "in", "on", "at", "to", "for",
+    "of", "with", "by", "from", "as", "is", "was", "are", "were", "be",
+    "been", "being", "have", "has", "had", "do", "does", "did", "will",
+    "would", "could", "should", "may", "might", "shall", "can", "need",
+    "i", "you", "he", "she", "it", "we", "they", "my", "your", "his",
+    "her", "its", "our", "their", "this", "that", "these", "those",
+    "am", "not", "no", "so", "if", "then", "than", "too", "also",
+    "into", "through", "during", "before", "after", "above", "below",
+    "between", "out", "up", "down", "over", "under", "again", "further",
+    "what", "which", "who", "whom", "when", "where", "why", "how",
+    "all", "each", "more", "most", "other", "some", "such", "own",
+    "same", "both", "just", "about", "per", "work", "worked", "working",
+    "team", "role", "roles", "company", "inc", "llc", "ltd", "corp",
+})
+
+
+def _extract_resume_signal_terms(resume_text: str) -> set[str]:
+    """
+    Extract meaningful 1-3 word phrases from resume text.
+    Keeps only phrases that appear 2+ times — frequency filter removes noise.
+    """
+    text = re.sub(r"[^a-z0-9\s]", " ", resume_text.lower())
+    words = [w for w in text.split() if w and len(w) > 2 and w not in _RESUME_STOPWORDS]
+
+    uni_counts: Counter[str] = Counter(words)
+    bigrams = [f"{words[i]} {words[i + 1]}" for i in range(len(words) - 1)]
+    bi_counts: Counter[str] = Counter(bigrams)
+    trigrams = [f"{words[i]} {words[i + 1]} {words[i + 2]}" for i in range(len(words) - 2)]
+    tri_counts: Counter[str] = Counter(trigrams)
+
+    signal: set[str] = set()
+    for term, count in uni_counts.items():
+        if count >= 2 and len(term) > 3:
+            signal.add(term)
+    for term, count in bi_counts.items():
+        if count >= 2:
+            signal.add(term)
+    for term, count in tri_counts.items():
+        if count >= 2:
+            signal.add(term)
+    return signal
+
+
+def _resume_jd_overlap_boost(resume_text: str, desc_norm: str) -> tuple[int, int]:
+    """
+    Returns (boost_points, match_count).
+    Extracts signal terms from resume, checks how many appear in the JD.
+    Max boost: +20 points.
+    """
+    if not resume_text or not desc_norm:
+        return 0, 0
+    signal_terms = _extract_resume_signal_terms(resume_text)
+    if not signal_terms:
+        return 0, 0
+    matches = sum(1 for term in signal_terms if term in desc_norm)
+    boost = min(int(matches * 1.5), 20)
+    return boost, matches
+
+
 def _resume_display_label(resume: "ResumeVariantId", user_profile=None) -> str:
     """Plain-English label for the popup. Internal codes are meaningless to non-Mayank testers."""
     if user_profile is not None:
@@ -1413,6 +1474,17 @@ def score_job(
             score += _theme_boost
             boosts["user_theme_boost"] = _theme_boost
             print(f"[SCORING] user_theme_boost: +{_theme_boost}")
+
+    # Resume overlap boost: signal terms from uploaded resume matched against JD.
+    # Stacks with theme boost; downstream caps prevent over-inflation.
+    if user_profile is not None:
+        _resume_text = (getattr(user_profile, "resume_text", None) or "").strip()
+        if _resume_text:
+            _resume_boost, _resume_matches = _resume_jd_overlap_boost(_resume_text, desc_norm)
+            if _resume_boost:
+                score += _resume_boost
+                boosts["resume_overlap_boost"] = _resume_boost
+                print(f"[SCORING] resume_overlap_boost: +{_resume_boost} ({_resume_matches} signal terms matched)")
 
     scope_pts, scope_boosts, scope_raw = _scope_alignment_boost(full_norm, title_norm)
     if scope_raw > 14:
