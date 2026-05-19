@@ -1437,9 +1437,11 @@ def score_job(
                 "individual contributor",
             ]
 
-            _jd_is_senior = any(p in full_norm for p in _senior_signals)
-            _jd_is_mid = any(p in full_norm for p in _mid_signals)
-            _jd_is_ic = any(p in full_norm for p in _ic_signals)
+            # Match against title only — avoids false boosts when the JD body
+            # merely mentions a director/VP as a stakeholder or manager.
+            _jd_is_senior = any(p in title_norm for p in _senior_signals)
+            _jd_is_mid = any(p in title_norm for p in _mid_signals)
+            _jd_is_ic = any(p in title_norm for p in _ic_signals)
 
             # Boost if JD matches ANY of the selected levels
             _matched = False
