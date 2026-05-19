@@ -78,13 +78,17 @@ function initSaveSettings() {
           jc_user_seniority: seniority,
         },
         () => {
-          if (status) {
-            status.textContent = "Saved ✓";
-            setTimeout(() => { status.textContent = ""; }, 2000);
-          }
-          // Refresh the profile reminder in the analyze tab
           _updateProfileReminder({ jc_user_name: name, jc_user_oneliner: oneliner,
             jc_user_themes: themes, jc_user_role_focus: roleFocus });
+
+          // Switch to Analyze tab and re-run scorer with the new profile
+          const analyzeTab = document.querySelector('.jc-tab[data-tab="analyze"]');
+          if (analyzeTab) analyzeTab.click();
+          if (status) {
+            status.textContent = "Saved ✓ — rescoring…";
+            setTimeout(() => { status.textContent = ""; }, 3000);
+          }
+          void runCopilot().catch((err) => jcDbgError("rescore after save failed", err));
         }
       );
     }
