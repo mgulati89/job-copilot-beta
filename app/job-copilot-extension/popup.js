@@ -1451,18 +1451,9 @@ async function runCopilot() {
       </div>
     `;
 
-    // CTA button — open the job page to apply
+    // CTA button — static indicator only, no click action
     const ctaBtn = document.getElementById("jcCtaBtn");
     if (ctaBtn) {
-      const jobUrl = job.source_url || job.normalized_job_url || "";
-      if (jobUrl) {
-        ctaBtn.style.cursor = "pointer";
-        ctaBtn.addEventListener("click", () => {
-          chrome.tabs.create({ url: jobUrl });
-        });
-      } else {
-        ctaBtn.style.cursor = "default";
-      }
     }
 
     // Toggle collapsed section
