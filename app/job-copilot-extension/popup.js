@@ -1413,7 +1413,11 @@ async function runCopilot() {
     let outreachHtml = "";
     if (score >= 65) {
       if (outreachCopyText) {
-        outreachHtml = `<button class="jc-copy-outreach-btn" id="jcCopyOutreachBtn">Copy outreach draft</button>`;
+        const escapedDraft = outreachCopyText
+          .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+        outreachHtml = `
+          <div class="jc-outreach-preview" id="jcOutreachPreview">${escapedDraft}</div>
+          <button class="jc-copy-outreach-btn" id="jcCopyOutreachBtn">Copy outreach draft</button>`;
       } else {
         outreachHtml = `<button class="jc-copy-outreach-btn" id="jcCopyOutreachBtn" disabled style="opacity:0.45;cursor:default;">No draft available</button>`;
       }

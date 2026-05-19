@@ -1159,7 +1159,13 @@ def _build_strategy_historical_reconnect(
     if not _validate_core_sentence(bg_line):
         bg_line = _fallback_background_sentence()
 
-    entity = _verified_overlap_entity(rel)
+    # Suppress LinkedIn-derived shared school/company when a custom user_profile
+    # is active — that connection data belongs to Mayank's account, not the tester's.
+    _up = _request_user_profile.get()
+    _has_custom_profile = _up is not None and bool(
+        getattr(_up, "name", "") or getattr(_up, "background_themes", [])
+    )
+    entity = None if _has_custom_profile else _verified_overlap_entity(rel)
     greet = f"Hi {first_name},"
     app = f"I just applied for the {title} role at {company}."
     cta = "Would be great to reconnect if you're open to it."
