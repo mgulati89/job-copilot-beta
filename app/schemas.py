@@ -196,6 +196,10 @@ class JobRead(JobBase):
         max_length=200,
         description="Plain-English resume label for the extension UI.",
     )
+    lead_with_themes: list[str] = Field(
+        default_factory=list,
+        description="2-3 JD-grounded themes for the popup 'Lead with' section.",
+    )
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -599,4 +603,8 @@ class ScoreJobResponse(BaseModel):
         default="",
         max_length=200,
         description="Plain-English resume label for the extension UI; 'Your primary resume' for non-internal users.",
+    )
+    lead_with_themes: list[str] = Field(
+        default_factory=list,
+        description="2-3 JD-grounded themes for the 'Lead with' section in the popup UI.",
     )

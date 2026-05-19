@@ -110,6 +110,150 @@
         padding: 6px 8px;
         margin-bottom: 8px;
       }
+
+      /* ── Score hero ──────────────────────────────────────── */
+      .jc-score-hero {
+        text-align: center;
+        padding: 18px 0 14px;
+      }
+      .jc-score-number {
+        font-size: 52px;
+        font-weight: 600;
+        color: #111827;
+        line-height: 1;
+        margin-bottom: 10px;
+        letter-spacing: -0.02em;
+      }
+
+      /* ── CTA button ──────────────────────────────────────── */
+      .jc-cta-btn {
+        display: block;
+        width: 100%;
+        padding: 11px;
+        font-size: 14px;
+        font-weight: 600;
+        border: none;
+        border-radius: 8px;
+        cursor: default;
+        text-align: center;
+      }
+      .jc-cta-apply  { background: #1D9E75; color: #E1F5EE; }
+      .jc-cta-review { background: #E8A020; color: #FEF3C7; }
+      .jc-cta-skip   { background: #F0F0F0; color: #6b7280; }
+
+      /* ── Resume row ──────────────────────────────────────── */
+      .jc-resume-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 10px 0;
+        border-top: 1px solid #f0f0f0;
+        border-bottom: 1px solid #f0f0f0;
+        margin: 12px 0;
+        font-size: 13px;
+      }
+      .jc-resume-label { color: #6b7280; }
+      .jc-resume-val   { font-weight: 500; color: #111827; }
+
+      /* ── Lead with themes ────────────────────────────────── */
+      .jc-themes-label {
+        font-size: 10px;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: #9ca3af;
+        margin-bottom: 8px;
+      }
+      .jc-theme-item {
+        display: flex;
+        align-items: flex-start;
+        gap: 9px;
+        margin-bottom: 8px;
+        font-size: 12.5px;
+        color: #374151;
+        line-height: 1.45;
+      }
+      .jc-theme-dot {
+        width: 5px;
+        height: 5px;
+        border-radius: 50%;
+        background: #1D9E75;
+        margin-top: 6px;
+        flex-shrink: 0;
+      }
+
+      /* ── Collapsed section ───────────────────────────────── */
+      .jc-more-toggle {
+        width: 100%;
+        background: none;
+        border: none;
+        border-top: 1px solid #f0f0f0;
+        margin-top: 12px;
+        padding: 10px 0 0;
+        font-size: 11px;
+        color: #9ca3af;
+        cursor: pointer;
+        text-align: center;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 4px;
+      }
+      .jc-more-toggle:hover { color: #6b7280; }
+      .jc-more-panel { display: none; margin-top: 10px; }
+      .jc-more-panel.open { display: block; }
+
+      .jc-salary-row {
+        font-size: 12px;
+        color: #374151;
+        margin-bottom: 10px;
+        padding-bottom: 10px;
+        border-bottom: 1px solid #f0f0f0;
+      }
+      .jc-salary-label {
+        color: #9ca3af;
+        font-size: 10px;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        margin-bottom: 3px;
+      }
+
+      .jc-status-row { margin-bottom: 10px; }
+      .jc-status-label {
+        color: #9ca3af;
+        font-size: 10px;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        margin-bottom: 6px;
+      }
+      .status-btn {
+        font-size: 11px;
+        padding: 4px 10px;
+        border: 1px solid #d1d5db;
+        border-radius: 5px;
+        background: #fff;
+        cursor: pointer;
+        margin-right: 4px;
+        color: #374151;
+      }
+      .status-btn.active {
+        background: #111827;
+        color: #fff;
+        border-color: #111827;
+      }
+
+      .jc-copy-outreach-btn {
+        width: 100%;
+        padding: 8px;
+        font-size: 12px;
+        color: #374151;
+        background: #f9fafb;
+        border: 1px solid #e5e7eb;
+        border-radius: 6px;
+        cursor: pointer;
+        text-align: center;
+        margin-bottom: 8px;
+      }
+      .jc-copy-outreach-btn:hover { background: #f3f4f6; }
     </style>
   </head>
   <body style="font-family: system-ui, -apple-system, Segoe UI, Arial, sans-serif; width: 320px; padding: 10px 12px 12px;">
@@ -130,35 +274,9 @@
         Add your profile in Settings for personalised results.
       </div>
 
-      <label
-        style="font-size: 11px; color: #6b7280; display: flex; align-items: center; gap: 6px; margin-bottom: 8px; cursor: pointer; user-select: none;"
-      >
-        <input type="checkbox" id="jcDebugToggle" />
-        Debug
-      </label>
-      <div
-        id="jcDebugPanel"
-        style="display: none; font-size: 10px; color: #475569; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 4px; padding: 6px; margin-bottom: 8px; max-height: 100px; overflow: auto; white-space: pre-wrap; word-break: break-word;"
-        aria-live="polite"
-      ></div>
-
-      <div id="jobPreview" style="margin-bottom: 8px; font-size: 14px; line-height: 1.45;"></div>
+      <div id="jobPreview" style="margin-bottom: 4px; font-size: 13px; font-weight: 600; color: #111827; line-height: 1.4;"></div>
 
       <div id="result" style="font-size: 13px; line-height: 1.45;"></div>
-
-      <div id="actions" style="display: none; font-size: 13px;">
-        <div style="margin-top: 10px;">
-          <strong>Status:</strong><br />
-          <button class="status-btn" data-status="New">New</button>
-          <button class="status-btn" data-status="Reviewing">Reviewing</button>
-          <button class="status-btn" data-status="Applied">Applied</button>
-          <button class="status-btn" data-status="Skipped">Skipped</button>
-        </div>
-
-        <div style="margin-top: 10px;">
-          <button id="copyOutreach" type="button">Copy Outreach</button>
-        </div>
-      </div>
     </div>
 
     <!-- ── Settings tab ────────────────────────────────────── -->

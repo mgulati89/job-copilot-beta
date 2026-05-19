@@ -43,6 +43,7 @@ from app.outreach import (
     OUTREACH_MIN_FIT_SCORE,
     HiringRelationshipContext,
     build_hiring_team_outreach_message,
+    extract_why_this_role_signals,
     generate_outreach_for_job,
     hiring_relationship_from_pydantic,
     hiring_team_automation_eligible,
@@ -717,15 +718,17 @@ def update_job(job_id: int, payload: JobUpdate) -> JobRead:
 
 @app.post("/score-job", response_model=ScoreJobResponse)
 def score_job_endpoint(payload: ScoreJobRequest) -> ScoreJobResponse:
-    return ScoreJobResponse(
-        **score_job(
-            title=payload.title,
-            company=payload.company,
-            job_description=payload.job_description,
-            location=payload.location,
-            user_profile=payload.user_profile,
-        )
+    raw = score_job(
+        title=payload.title,
+        company=payload.company,
+        job_description=payload.job_description,
+        location=payload.location,
+        user_profile=payload.user_profile,
     )
+    themes = extract_why_this_role_signals(
+        payload.job_description, payload.title, raw.get("role_family")
+    )
+    return ScoreJobResponse(**raw, lead_with_themes=themes)
 
 
 @app.post("/score-and-create-job")
@@ -758,6 +761,9 @@ def score_and_create_job(payload: ScoreJobRequest, response: Response):
                     user_profile=payload.user_profile,
                 )
                 now = datetime.now(timezone.utc)
+                _themes_refresh = extract_why_this_role_signals(
+                    payload.job_description, title_eff, scored_raw.get("role_family")
+                )
                 refreshed = by_lid.model_copy(
                     update={
                         "title": title_eff,
@@ -770,6 +776,7 @@ def score_and_create_job(payload: ScoreJobRequest, response: Response):
                         "role_family": scored_raw["role_family"],
                         "recommended_resume_variant": scored_raw["recommended_resume_variant"],
                         "resume_recommendation_display": scored_raw.get("resume_recommendation_display", ""),
+                        "lead_with_themes": _themes_refresh,
                         "has_open_ended_questions": scored_raw["has_open_ended_questions"],
                         "decision": scored_raw["decision"],
                         "recommended_action": scored_raw["recommended_action"],
@@ -814,15 +821,17 @@ def score_and_create_job(payload: ScoreJobRequest, response: Response):
                 update={"notion_sync_ok": n_ok, "notion_sync_error": n_err}
             )
 
-        scored = ScoreJobResponse(
-            **score_job(
-                title=title_eff,
-                company=company_eff,
-                job_description=payload.job_description,
-                location=payload.location,
-                user_profile=payload.user_profile,
-            )
+        _raw_scored = score_job(
+            title=title_eff,
+            company=company_eff,
+            job_description=payload.job_description,
+            location=payload.location,
+            user_profile=payload.user_profile,
         )
+        _lead_themes = extract_why_this_role_signals(
+            payload.job_description, title_eff, _raw_scored.get("role_family")
+        )
+        scored = ScoreJobResponse(**_raw_scored, lead_with_themes=_lead_themes)
 
         apply_t, _ = get_scoring_thresholds()
         initial_status = (
@@ -844,6 +853,7 @@ def score_and_create_job(payload: ScoreJobRequest, response: Response):
             fit_score=scored.fit_score,
             recommended_resume_variant=scored.recommended_resume_variant,
             resume_recommendation_display=scored.resume_recommendation_display,
+            lead_with_themes=scored.lead_with_themes,
             status=initial_status,
             has_open_ended_questions=scored.has_open_ended_questions,
             decision=scored.decision,

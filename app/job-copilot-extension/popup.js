@@ -620,20 +620,16 @@ function attachActionHandlers(jobData) {
   const jobId = jobData?.job_id;
   if (!jobId) return;
 
-  const actionsEl = document.getElementById("actions");
-  if (actionsEl) actionsEl.style.display = "block";
-
+  // Status buttons are rendered inside #result (collapsed panel)
   document.querySelectorAll(".status-btn").forEach((btn) => {
     btn.addEventListener("click", async () => {
       const status = btn.dataset.status;
-
       try {
         const res = await jcFetch(apiUrl(`/jobs/${jobId}/update-status`), {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ status }),
         });
-
         if (res.ok) {
           resetStatusButtonLabels();
           if (status === "Reviewing") applyReviewingUI();
@@ -650,25 +646,6 @@ function attachActionHandlers(jobData) {
   const active = jobData?.active_status;
   if (active) {
     highlightStatus(active);
-  }
-
-  const outreachBtn = document.getElementById("copyOutreach");
-  if (outreachBtn) {
-    if (!jobData?.outreach) {
-      outreachBtn.style.display = "none";
-    } else {
-      outreachBtn.style.display = "";
-      const defaultLabel = "Copy Outreach";
-      outreachBtn.onclick = () => {
-        const fullOutreachText = String(jobData.outreach || "");
-        navigator.clipboard.writeText(fullOutreachText);
-        jcDbg("outreach copied to clipboard");
-        outreachBtn.innerText = "Copied ✓";
-        setTimeout(() => {
-          outreachBtn.innerText = defaultLabel;
-        }, 1500);
-      };
-    }
   }
 }
 
@@ -956,12 +933,7 @@ async function runCopilot() {
         jobData.extraction_mode === "partial"
           ? '<div style="font-size:12px;color:#6b7280;margin-top:8px;">Using partial job description (shorter than ideal).</div>'
           : "";
-      previewDiv.innerHTML = `
-  <b>Title:</b> ${displayLabelTitle(jobNormalizedTitleFromPayload(jobData))}<br/>
-  <b>Company:</b> ${displayLabelCompany(jobData?.company)}<br/>
-  <b>Description:</b> found
-  ${partialNote}
-`;
+      previewDiv.innerHTML = `${displayLabelTitle(jobNormalizedTitleFromPayload(jobData))} @ ${displayLabelCompany(jobData?.company)}${partialNote ? `<div style="font-size:11px;color:#6b7280;font-weight:400;margin-top:2px;">${partialNote}</div>` : ""}`;
     }
 
     if (missingCriticalFields) {
@@ -1363,529 +1335,141 @@ async function runCopilot() {
       }
     }
 
-    previewDiv.innerHTML = "";
+    // Simplified job preview: [Title] @ [Company]
+    previewDiv.innerHTML = `${job.title} @ ${job.company}`;
 
     resultDiv.innerHTML = "";
 
-    const card = document.createElement("div");
-    card.style.border = "1px solid #ddd";
-    card.style.borderRadius = "8px";
-    card.style.padding = "10px";
-    card.style.marginTop = "10px";
-    card.style.fontSize = "14px";
-    card.style.background = "#fafafa";
-
-    const priorityBanner = document.createElement("div");
-    priorityBanner.id = "jobCopilotPriorityBanner";
-    priorityBanner.style.display = "none";
-    priorityBanner.style.marginBottom = "8px";
-    priorityBanner.style.padding = "8px";
-    priorityBanner.style.background = "#fef3c7";
-    priorityBanner.style.border = "1px solid #f59e0b";
-    priorityBanner.style.borderRadius = "6px";
-    priorityBanner.style.fontSize = "13px";
-    priorityBanner.style.fontWeight = "600";
-    priorityBanner.style.color = "#92400e";
-    card.appendChild(priorityBanner);
-
-    if (job.notion_sync_ok === false) {
-      const notionWarn = document.createElement("div");
-      notionWarn.style.marginBottom = "8px";
-      notionWarn.style.padding = "8px";
-      notionWarn.style.background = "#fef2f2";
-      notionWarn.style.border = "1px solid #fecaca";
-      notionWarn.style.borderRadius = "6px";
-      notionWarn.style.fontSize = "13px";
-      notionWarn.style.color = "#991b1b";
-      notionWarn.innerText = "Saved locally, Notion sync failed";
-      card.appendChild(notionWarn);
-      if (jcDebugEnabled() && job.notion_sync_error) {
-        jcSetDebugPanelText(`notion_sync_error: ${job.notion_sync_error}`);
-      }
+    // ── Notion sync failure — small quiet line ────────────────────────────
+    const notionFailHtml = job.notion_sync_ok === false
+      ? `<div style="font-size:11px;color:#9ca3af;margin-bottom:8px;">Saved locally · Notion sync failed</div>`
+      : "";
+    if (job.notion_sync_ok === false && jcDebugEnabled() && job.notion_sync_error) {
+      jcSetDebugPanelText(`notion_sync_error: ${job.notion_sync_error}`);
     }
 
-    const header = document.createElement("div");
-    header.style.fontWeight = "bold";
-    header.style.marginBottom = "6px";
-    header.innerText = job.title + " @ " + job.company;
+    // ── Score & CTA ───────────────────────────────────────────────────────
+    const score = job.fit_score;
+    const decision = job.decision;
+    const ctaClass = decision === "Apply" ? "jc-cta-apply"
+                   : decision === "Review" ? "jc-cta-review"
+                   : "jc-cta-skip";
+    const ctaLabel = score >= 80 ? "Apply Now"
+                   : decision === "Review" ? "Worth a look"
+                   : "Skip this one";
 
-    const rec = document.createElement("div");
-    rec.style.marginBottom = "6px";
+    // Domain mismatch — small icon next to score
+    const dmIcon = job.domain_mismatch
+      ? `<span title="${job.domain_mismatch_reason || "Domain mismatch — score was adjusted"}" style="font-size:16px;margin-left:6px;cursor:help;vertical-align:middle;">⚠️</span>`
+      : "";
 
-    const fitLine = document.createElement("div");
-    fitLine.style.fontSize = "14px";
-    fitLine.innerHTML = `<b>Fit Score:</b> ${job.fit_score}`;
-    rec.appendChild(fitLine);
+    // ── Resume display ────────────────────────────────────────────────────
+    const resumeDisplay = job.resume_recommendation_display || job.recommended_resume_variant || "Your primary resume";
 
-    // Domain mismatch warning — show before priority so it's the first thing seen
-    if (job.domain_mismatch) {
-      const dmBanner = document.createElement("div");
-      dmBanner.style.marginTop = "8px";
-      dmBanner.style.marginBottom = "4px";
-      dmBanner.style.padding = "7px 10px";
-      dmBanner.style.background = "#fef3c7";
-      dmBanner.style.border = "1px solid #f59e0b";
-      dmBanner.style.borderRadius = "6px";
-      dmBanner.style.fontSize = "12px";
-      dmBanner.style.color = "#92400e";
-      dmBanner.style.lineHeight = "1.5";
-      dmBanner.innerHTML =
-        `⚠️ <b>Domain mismatch</b> · Score penalized<br>` +
-        `<span style="font-weight:normal">${job.domain_mismatch_reason || "Non-GTM domain detected — verify this is a fit before applying."}</span>`;
-      rec.appendChild(dmBanner);
-    }
+    // ── Lead with themes ──────────────────────────────────────────────────
+    const rawThemes = (Array.isArray(job.lead_with_themes) && job.lead_with_themes.length > 0)
+      ? job.lead_with_themes
+      : (outreach?.outreach_debug?.role_signals_used || []);
+    const themesHtml = rawThemes.slice(0, 3).map((t) =>
+      `<div class="jc-theme-item"><div class="jc-theme-dot"></div><span>${t}</span></div>`
+    ).join("");
+    const leadWithSection = themesHtml
+      ? `<div style="margin:4px 0 12px;"><div class="jc-themes-label">Lead with</div>${themesHtml}</div>`
+      : "";
 
-    const pri = priorityFromFit(job.fit_score);
-    if (pri.label === "Skip") {
-      card.style.opacity = "0.85";
-    }
-    const priorityLine = document.createElement("div");
-    priorityLine.style.fontWeight = "bold";
-    priorityLine.style.fontSize = "15px";
-    priorityLine.style.marginTop = "6px";
-    priorityLine.style.marginBottom = "4px";
-    priorityLine.style.color = pri.color;
-    priorityLine.innerText = `${pri.emoji} Priority: ${pri.label}`;
-
-    const resumeLine = document.createElement("div");
-    resumeLine.style.fontSize = "14px";
-    resumeLine.innerHTML = `<b>Resume:</b> ${job.resume_recommendation_display || job.recommended_resume_variant}`;
-
-    rec.appendChild(priorityLine);
-
-    rec.appendChild(resumeLine);
-
-    const status = document.createElement("div");
-    status.style.marginBottom = "6px";
-    status.innerHTML = `<b>Saved:</b> ${job.notion_page_id ? "✅ Yes" : "❌ No"}`;
-
-    const why = document.createElement("div");
-    why.style.fontSize = "13px";
-    why.style.color = "#555";
-    why.innerHTML = `<b>Why:</b> ${insightText}`;
-
-    card.appendChild(header);
-    card.appendChild(rec);
-    card.appendChild(status);
-    card.appendChild(why);
-
+    // ── Salary in collapsed ───────────────────────────────────────────────
+    let salaryHtml = "";
     if (salaryGuidance && salaryGuidance.copy_text) {
-      const sgBlock = document.createElement("div");
-      sgBlock.style.marginTop = "10px";
-      sgBlock.style.paddingTop = "8px";
-      sgBlock.style.borderTop = "1px solid #ddd";
-
-      const sgTitle = document.createElement("div");
-      sgTitle.style.fontWeight = "bold";
-      sgTitle.style.marginBottom = "6px";
-      sgTitle.innerText = "Salary Guidance";
-
-      const sgRange = document.createElement("div");
-      sgRange.style.fontSize = "15px";
-      sgRange.style.marginBottom = "4px";
-      sgRange.innerText = salaryGuidance.copy_text;
-
-      const sd = salaryGuidance.salary_debug || {};
-      const displaySrcRaw =
-        salaryGuidance.display_source != null &&
-        String(salaryGuidance.display_source).trim() !== ""
-          ? String(salaryGuidance.display_source).trim()
-          : sd.display_source != null && String(sd.display_source).trim() !== ""
-            ? String(sd.display_source).trim()
-            : "";
-      const srcLine = displaySrcRaw
-        ? `Source: ${displaySrcRaw}`
-        : "Source: —";
-      const sgSrc = document.createElement("div");
-      sgSrc.style.fontSize = "12px";
-      sgSrc.style.color = "#555";
-      sgSrc.style.marginBottom = "4px";
-      sgSrc.innerText = srcLine;
-
-      sgBlock.appendChild(sgTitle);
-      sgBlock.appendChild(sgRange);
-      sgBlock.appendChild(sgSrc);
-      if (
-        salaryGuidance.confidence != null &&
-        salaryGuidance.confidence !== undefined
-      ) {
-        const sgConf = document.createElement("div");
-        sgConf.style.fontSize = "11px";
-        sgConf.style.color = "#777";
-        sgConf.style.marginBottom = "4px";
-        sgConf.innerText = `Confidence: ${Math.round(
-          Number(salaryGuidance.confidence) * 100
-        )}%`;
-        sgBlock.appendChild(sgConf);
-      }
-
-      if (salaryGuidance.listed_in_jd) {
-        const listed = document.createElement("div");
-        listed.style.fontSize = "12px";
-        listed.style.color = "#444";
-        listed.style.marginBottom = "6px";
-        listed.innerText = salaryGuidance.listed_in_jd;
-        sgBlock.appendChild(listed);
-      }
-
-      const copySalBtn = document.createElement("button");
-      copySalBtn.type = "button";
-      copySalBtn.innerText = "Copy Salary Answer";
-      copySalBtn.onclick = () => {
-        navigator.clipboard.writeText(String(salaryGuidance.copy_text || ""));
-        copySalBtn.innerText = "Copied ✓";
-        setTimeout(() => {
-          copySalBtn.innerText = "Copy Salary Answer";
-        }, 1500);
-      };
-      sgBlock.appendChild(copySalBtn);
-      card.appendChild(sgBlock);
+      const displaySrc = (salaryGuidance.display_source || "").trim();
+      salaryHtml = `
+        <div class="jc-salary-row">
+          <div class="jc-salary-label">Salary</div>
+          <div>${salaryGuidance.copy_text}${displaySrc ? ` <span style="font-size:11px;color:#9ca3af;">· ${displaySrc}</span>` : ""}</div>
+        </div>`;
     }
 
+    // ── Hiring contact row in collapsed (name + copy) ─────────────────────
+    let hiringHtml = "";
     if (hiringSuggest && hiringSuggest.eligible) {
-      const hsBlock = document.createElement("div");
-      hsBlock.style.marginTop = "10px";
-      hsBlock.style.paddingTop = "8px";
-      hsBlock.style.borderTop = "1px solid #ddd";
+      const hmName = hiringSuggest.hiring_manager_name || "";
+      const hmRole = hiringSuggest.hiring_manager_role || "";
+      const hmLine = [hmName, hmRole].filter(Boolean).join(" · ");
+      hiringHtml = `
+        <div style="margin-bottom:10px;padding-bottom:10px;border-bottom:1px solid #f0f0f0;">
+          <div class="jc-salary-label">Hiring contact</div>
+          <div style="font-size:12px;color:#374151;margin-bottom:6px;">${hmLine || "—"}</div>
+        </div>`;
+    }
 
-      const hsTitle = document.createElement("div");
-      hsTitle.style.fontWeight = "bold";
-      hsTitle.style.marginBottom = "6px";
-      hsTitle.innerText = "Outreach Suggested";
+    // ── Outreach copy button in collapsed ─────────────────────────────────
+    const outreachHtml = outreachCopyText
+      ? `<button class="jc-copy-outreach-btn" id="jcCopyOutreachBtn">Copy outreach draft</button>`
+      : "";
 
-      const hsMeta = document.createElement("div");
-      hsMeta.style.fontSize = "12px";
-      hsMeta.style.marginBottom = "4px";
-      hsMeta.style.color = "#444";
-      const hmName = hiringSuggest.hiring_manager_name || "—";
-      const hmRole = hiringSuggest.hiring_manager_role || "—";
-      hsMeta.innerHTML = `<b>Hiring contact:</b> ${hmName} · ${hmRole}`;
+    // ── Render ────────────────────────────────────────────────────────────
+    resultDiv.innerHTML = `
+      ${notionFailHtml}
+      <div class="jc-score-hero">
+        <div class="jc-score-number">${score}${dmIcon}</div>
+        <div class="jc-cta-btn ${ctaClass}">${ctaLabel}</div>
+      </div>
 
-      const hsStatus = document.createElement("div");
-      hsStatus.id = "hiringOutreachStatus";
-      hsStatus.style.fontSize = "12px";
-      hsStatus.style.marginBottom = "6px";
-      hsStatus.innerText = hiringSuggest.hiring_outreach_sent
-        ? "Outreach: Sent"
-        : "Outreach: Not Sent";
+      <div class="jc-resume-row">
+        <span class="jc-resume-label">Resume to send</span>
+        <span class="jc-resume-val">${resumeDisplay}</span>
+      </div>
 
-      const hsPrev = document.createElement("div");
-      hsPrev.className = "outreach-container";
-      hsPrev.style.maxHeight = "140px";
-      hsPrev.innerText = hiringSuggest.message || "";
+      ${leadWithSection}
 
-      const btnRow = document.createElement("div");
-      btnRow.style.marginTop = "8px";
-      btnRow.style.display = "flex";
-      btnRow.style.flexWrap = "wrap";
-      btnRow.style.gap = "6px";
+      <button class="jc-more-toggle" id="jcMoreToggle">
+        <span id="jcMoreChevron">▾</span>&nbsp;Salary · Status · More
+      </button>
+      <div class="jc-more-panel" id="jcMorePanel">
+        ${salaryHtml}
+        ${hiringHtml}
+        <div class="jc-status-row">
+          <div class="jc-status-label">Status</div>
+          <button class="status-btn" data-status="New">New</button>
+          <button class="status-btn" data-status="Reviewing">Reviewing</button>
+          <button class="status-btn" data-status="Applied">Applied</button>
+          <button class="status-btn" data-status="Skipped">Skipped</button>
+        </div>
+        ${outreachHtml}
+      </div>
+    `;
 
-      const copyMsgBtn = document.createElement("button");
-      copyMsgBtn.type = "button";
-      copyMsgBtn.innerText = "Copy message";
-      copyMsgBtn.onclick = () => {
-        navigator.clipboard.writeText(String(hiringSuggest.message || ""));
-        copyMsgBtn.innerText = "Copied ✓";
-        setTimeout(() => {
-          copyMsgBtn.innerText = "Copy message";
-        }, 1500);
-      };
+    // Toggle collapsed section
+    document.getElementById("jcMoreToggle").addEventListener("click", () => {
+      const panel = document.getElementById("jcMorePanel");
+      const chevron = document.getElementById("jcMoreChevron");
+      panel.classList.toggle("open");
+      chevron.textContent = panel.classList.contains("open") ? "▴" : "▾";
+    });
 
+    // Copy outreach draft
+    const copyOutreachBtn = document.getElementById("jcCopyOutreachBtn");
+    if (copyOutreachBtn && outreachCopyText) {
+      copyOutreachBtn.addEventListener("click", () => {
+        navigator.clipboard.writeText(outreachCopyText).then(() => {
+          copyOutreachBtn.textContent = "Copied!";
+          setTimeout(() => { copyOutreachBtn.textContent = "Copy outreach draft"; }, 2000);
+        });
+      });
+    }
+
+    // Hiring contact LinkedIn link (open in new tab)
+    if (hiringSuggest && hiringSuggest.eligible && hiringSuggest.linkedin_url) {
       const liBtn = document.createElement("button");
       liBtn.type = "button";
-      liBtn.innerText = "Open LinkedIn";
-      liBtn.onclick = () => {
-        const u = hiringSuggest.linkedin_url || "";
-        if (u) chrome.tabs.create({ url: u });
-      };
-
-      const markSentBtn = document.createElement("button");
-      markSentBtn.type = "button";
-      markSentBtn.innerText = "Mark outreach sent";
-      markSentBtn.disabled = !!hiringSuggest.hiring_outreach_sent;
-      markSentBtn.onclick = async () => {
-        try {
-          const r = await jcFetch(
-            apiUrl(`/jobs/${job.id}/mark-hiring-outreach-sent`),
-            { method: "POST" }
-          );
-          if (r.ok) {
-            markSentBtn.disabled = true;
-            const st = document.getElementById("hiringOutreachStatus");
-            if (st) st.innerText = "Outreach: Sent";
-            const pb = document.getElementById("jobCopilotPriorityBanner");
-            if (pb) pb.style.display = "none";
-          }
-        } catch (e) {
-          jcDbgError("mark-hiring-outreach-sent failed", e);
-        }
-      };
-
-      btnRow.appendChild(copyMsgBtn);
-      btnRow.appendChild(liBtn);
-      btnRow.appendChild(markSentBtn);
-
-      hsBlock.appendChild(hsTitle);
-      hsBlock.appendChild(hsMeta);
-      const rcd = jobData?.relationship_context?.contact_debug;
-      if (rcd && rcd.contact_type) {
-        const contactLabel = {
-          warm_contact: "Contact type: Warm contact",
-          historical_connection: "Contact type: Historical connection",
-          hiring_team_contact: "Contact type: Hiring contact",
-          unknown_or_none: "Contact type: No contact context",
-        };
-        const line = contactLabel[rcd.contact_type];
-        if (line) {
-          const hsCd = document.createElement("div");
-          hsCd.style.fontSize = "11px";
-          hsCd.style.color = "#666";
-          hsCd.style.marginBottom = "4px";
-          hsCd.innerText = line;
-          hsBlock.appendChild(hsCd);
-        }
+      liBtn.style.cssText = "width:100%;padding:7px;font-size:12px;color:#374151;background:#f9fafb;border:1px solid #e5e7eb;border-radius:6px;cursor:pointer;margin-bottom:8px;";
+      liBtn.textContent = "Open LinkedIn profile";
+      liBtn.onclick = () => chrome.tabs.create({ url: hiringSuggest.linkedin_url });
+      const morePanel = document.getElementById("jcMorePanel");
+      if (morePanel) {
+        const statusRow = morePanel.querySelector(".jc-status-row");
+        if (statusRow) morePanel.insertBefore(liBtn, statusRow);
       }
-      hsBlock.appendChild(hsStatus);
-      hsBlock.appendChild(hsPrev);
-      hsBlock.appendChild(btnRow);
-      card.appendChild(hsBlock);
     }
-
-    if (job.fit_score < 70) {
-      const note = document.createElement("div");
-      note.style.marginTop = "8px";
-      note.style.fontSize = "13px";
-      note.style.color = "#777";
-      note.innerText = "No outreach suggested for this fit level.";
-      card.appendChild(note);
-    }
-
-    if (outreach) {
-      let currentRelFlag = "cold"; // tracks active relationship flag for re-fetch
-      const strat = outreach.outreach_strategy;
-      const outreachBlock = document.createElement("div");
-      outreachBlock.style.marginTop = "10px";
-      outreachBlock.style.paddingTop = "8px";
-      outreachBlock.style.borderTop = "1px solid #ddd";
-
-      // ── Relationship flag row ──────────────────────────────────────────────
-      const relRow = document.createElement("div");
-      relRow.style.display = "flex";
-      relRow.style.alignItems = "center";
-      relRow.style.gap = "6px";
-      relRow.style.marginBottom = "10px";
-      relRow.style.flexWrap = "wrap";
-
-      const relLabel = document.createElement("span");
-      relLabel.style.fontSize = "11px";
-      relLabel.style.color = "#6b7280";
-      relLabel.style.fontWeight = "600";
-      relLabel.style.textTransform = "uppercase";
-      relLabel.style.letterSpacing = "0.04em";
-      relLabel.innerText = "Relationship:";
-      relRow.appendChild(relLabel);
-
-      const relOptions = [
-        { flag: "cold",       label: "Cold" },
-        { flag: "met_before", label: "Met before" },
-        { flag: "in_contact", label: "Already in contact" },
-      ];
-
-      const stratBlocks = document.createElement("div");
-      stratBlocks.id = "jc-strat-blocks";
-
-      function renderStratBlocks(blocks) {
-        stratBlocks.innerHTML = "";
-        blocks.forEach((block) => {
-          const sec = document.createElement("div");
-          sec.style.marginBottom = "12px";
-          sec.style.padding = "8px";
-          sec.style.background = "#fff";
-          sec.style.border = "1px solid #e5e7eb";
-          sec.style.borderRadius = "6px";
-
-          const title = document.createElement("div");
-          title.style.fontSize = "13px";
-          title.style.fontWeight = "600";
-          title.style.marginBottom = "6px";
-          title.style.color = "#111827";
-          title.innerText = block.label
-            ? `${block.badge} · ${block.label}`
-            : block.badge;
-          sec.appendChild(title);
-
-          if (block.known_contact === false) {
-            const empty = document.createElement("div");
-            empty.style.fontSize = "12px";
-            empty.style.color = "#6b7280";
-            empty.style.lineHeight = "1.5";
-            empty.style.padding = "6px 0";
-            empty.innerText =
-              `No contact found for ${job.company || "this company"}. ` +
-              `Find a recruiter or hiring manager on LinkedIn, ` +
-              `then come back — the draft is ready to personalize.`;
-
-            const showDraftBtn = document.createElement("button");
-            showDraftBtn.type = "button";
-            showDraftBtn.style.fontSize = "11px";
-            showDraftBtn.style.marginTop = "8px";
-            showDraftBtn.style.padding = "3px 8px";
-            showDraftBtn.style.color = "#6b7280";
-            showDraftBtn.style.background = "transparent";
-            showDraftBtn.style.border = "1px solid #d1d5db";
-            showDraftBtn.style.borderRadius = "4px";
-            showDraftBtn.style.cursor = "pointer";
-            showDraftBtn.innerText = "Show draft anyway ▼";
-
-            const draftWrap = document.createElement("div");
-            draftWrap.style.display = "none";
-            draftWrap.style.marginTop = "8px";
-
-            const pre = document.createElement("div");
-            pre.className = "outreach-container";
-            pre.style.fontSize = "13px";
-            pre.style.whiteSpace = "pre-wrap";
-            pre.innerText = block.message_clean || block.message || "";
-
-            const copyBtn = document.createElement("button");
-            copyBtn.type = "button";
-            copyBtn.style.fontSize = "12px";
-            copyBtn.style.marginTop = "6px";
-            copyBtn.innerText = "Copy draft";
-            copyBtn.onclick = () => {
-              navigator.clipboard.writeText(String(block.message || ""));
-              copyBtn.innerText = "Copied ✓";
-              setTimeout(() => { copyBtn.innerText = "Copy draft"; }, 1500);
-            };
-            draftWrap.appendChild(pre);
-            draftWrap.appendChild(copyBtn);
-            showDraftBtn.onclick = () => {
-              const open = draftWrap.style.display === "none";
-              draftWrap.style.display = open ? "block" : "none";
-              showDraftBtn.innerText = open ? "Hide draft ▲" : "Show draft anyway ▼";
-            };
-            sec.appendChild(empty);
-            sec.appendChild(showDraftBtn);
-            sec.appendChild(draftWrap);
-          } else {
-            const pre = document.createElement("div");
-            pre.className = "outreach-container";
-            pre.style.fontSize = "13px";
-            pre.style.whiteSpace = "pre-wrap";
-            pre.innerText = block.message_clean || block.message || "";
-
-            const copyBtn = document.createElement("button");
-            copyBtn.type = "button";
-            copyBtn.style.fontSize = "12px";
-            copyBtn.style.marginTop = "6px";
-            copyBtn.innerText = "Copy";
-            copyBtn.onclick = () => {
-              navigator.clipboard.writeText(String(block.message || ""));
-              copyBtn.innerText = "Copied ✓";
-              setTimeout(() => { copyBtn.innerText = "Copy"; }, 1500);
-            };
-            sec.appendChild(pre);
-            sec.appendChild(copyBtn);
-          }
-          stratBlocks.appendChild(sec);
-        });
-      }
-
-      // Build relationship flag buttons
-      relOptions.forEach(({ flag, label }) => {
-        const btn = document.createElement("button");
-        btn.type = "button";
-        btn.dataset.flag = flag;
-        btn.innerText = label;
-        btn.style.fontSize = "11px";
-        btn.style.padding = "3px 9px";
-        btn.style.borderRadius = "4px";
-        btn.style.cursor = "pointer";
-        btn.style.border = "1px solid #d1d5db";
-        btn.style.background = flag === "cold" ? "#1d4ed8" : "#f9fafb";
-        btn.style.color = flag === "cold" ? "#fff" : "#374151";
-        btn.style.fontWeight = flag === "cold" ? "600" : "400";
-
-        btn.onclick = async () => {
-          if (currentRelFlag === flag) return;
-          currentRelFlag = flag;
-          // Update button styles
-          relRow.querySelectorAll("button[data-flag]").forEach((b) => {
-            const active = b.dataset.flag === flag;
-            b.style.background = active ? "#1d4ed8" : "#f9fafb";
-            b.style.color = active ? "#fff" : "#374151";
-            b.style.fontWeight = active ? "600" : "400";
-          });
-          stratBlocks.style.opacity = "0.5";
-          try {
-            const freshOutreach = await jcFetch(
-              apiUrl(`/jobs/${job.id}/generate-outreach`),
-              {
-                method: "POST",
-                body: {
-                  relationship_context: jobData.relationship_context || null,
-                  user_relationship_flag: flag,
-                },
-              }
-            );
-            const freshStrat = freshOutreach?.outreach_strategy;
-            if (Array.isArray(freshStrat) && freshStrat.length > 0) {
-              renderStratBlocks(freshStrat);
-            }
-          } catch (e) {
-            jcDbgError("relationship flag re-fetch failed", e);
-          } finally {
-            stratBlocks.style.opacity = "1";
-          }
-        };
-        relRow.appendChild(btn);
-      });
-
-      const outreachHeading = document.createElement("div");
-      outreachHeading.style.fontWeight = "bold";
-      outreachHeading.style.marginBottom = "8px";
-      outreachHeading.innerText = "Outreach Strategy";
-
-      outreachBlock.appendChild(outreachHeading);
-      outreachBlock.appendChild(relRow);
-
-      // Initial render using the already-fetched outreach response
-      if (Array.isArray(strat) && strat.length > 0) {
-        renderStratBlocks(strat);
-        outreachBlock.appendChild(stratBlocks);
-      } else {
-        const rot = outreachRot;
-        const drafts = outreach.drafts || {};
-        const draftText =
-          drafts[`${rot}_clean`] || drafts[rot] || "";
-        const typeLine = document.createElement("div");
-        typeLine.style.fontSize = "12px";
-        typeLine.style.marginBottom = "4px";
-        typeLine.innerHTML = `<b>Type:</b> ${rot || ""}`;
-        const draftPreview = document.createElement("div");
-        draftPreview.className = "outreach-container";
-        draftPreview.innerText = draftText || "";
-        const expandRow = document.createElement("div");
-        expandRow.style.marginTop = "6px";
-        const expandBtn = document.createElement("button");
-        expandBtn.type = "button";
-        expandBtn.style.fontSize = "12px";
-        expandBtn.style.padding = "4px 8px";
-        expandBtn.innerText = "Show More ▼";
-        expandBtn.onclick = () => {
-          const on = draftPreview.classList.toggle("expanded");
-          expandBtn.innerText = on ? "Show Less ▲" : "Show More ▼";
-        };
-        expandRow.appendChild(expandBtn);
-        outreachBlock.appendChild(typeLine);
-        outreachBlock.appendChild(draftPreview);
-        outreachBlock.appendChild(expandRow);
-      }
-
-      card.appendChild(outreachBlock);
-    }
-
-    resultDiv.appendChild(card);
 
     attachActionHandlers({
       job_id: job.id,
@@ -1905,7 +1489,6 @@ async function runCopilot() {
 }
 
 (function bootstrapPopup() {
-  initJcDebugToggle();
   initSettingsTabs();
   loadProfileForm();
   initSaveSettings();
