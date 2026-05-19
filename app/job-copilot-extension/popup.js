@@ -1270,8 +1270,11 @@ async function runCopilot() {
             })
         : Promise.resolve(null);
 
+    // Generate outreach for any scoreable job (Apply or Review range).
+    // No recommended_action gate — high-scoring jobs need drafts most.
+    // Runs concurrently with hiringSuggest so the text is ready before render.
     const outreachPromise =
-      job.fit_score >= 70 && job.recommended_action !== "Apply Now"
+      job.fit_score >= 65
         ? jcFetch(apiUrl(`/jobs/${job.id}/generate-outreach`), {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -1402,9 +1405,15 @@ async function runCopilot() {
     }
 
     // ── Outreach copy button in collapsed ─────────────────────────────────
-    const outreachHtml = outreachCopyText
-      ? `<button class="jc-copy-outreach-btn" id="jcCopyOutreachBtn">Copy outreach draft</button>`
-      : "";
+    // Always render the button for apply/review range; disable if draft missing.
+    let outreachHtml = "";
+    if (score >= 65) {
+      if (outreachCopyText) {
+        outreachHtml = `<button class="jc-copy-outreach-btn" id="jcCopyOutreachBtn">Copy outreach draft</button>`;
+      } else {
+        outreachHtml = `<button class="jc-copy-outreach-btn" id="jcCopyOutreachBtn" disabled style="opacity:0.45;cursor:default;">No draft available</button>`;
+      }
+    }
 
     // ── Render ────────────────────────────────────────────────────────────
     resultDiv.innerHTML = `
