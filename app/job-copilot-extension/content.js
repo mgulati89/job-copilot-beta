@@ -4494,10 +4494,13 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             description = "No description available";
           }
 
-          const payload = jcBuildScoreAndCreateApiPayload(
-            { ...p, job_description: description },
-            cleanJobUrl
-          );
+          const payload = {
+            ...jcBuildScoreAndCreateApiPayload(
+              { ...p, job_description: description },
+              cleanJobUrl
+            ),
+            user_profile: p.user_profile || null,
+          };
           console.log(
             "[JC DESC] final length before send:",
             payload.job_description?.length || 0
@@ -4506,8 +4509,15 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
           const lid = (payload.linkedin_job_id || "").trim();
           const bypassDedupe = !!request.bypassScoreCreateDedupe;
+          // Only dedupe when no user_profile is present — a profile change must
+          // always reach the backend so scoring reflects the updated themes.
+          const hasProfile = !!(payload.user_profile && (
+            payload.user_profile.name ||
+            (payload.user_profile.background_themes || []).length > 0
+          ));
           if (
             !bypassDedupe &&
+            !hasProfile &&
             lid &&
             lid === lastJobIdSent &&
             lastScoreCreateBodyText != null
