@@ -498,19 +498,34 @@ def extract_role_signals(
     return out[:3]
 
 
+_JD_NOISE_SIGNALS = frozenset({
+    "sign in", "join now", "followers", "applicants", "cookie policy",
+    "privacy policy", "user agreement", "show more", "show less",
+    "similar jobs", "people also viewed", "get notified", "explore",
+    "linkedin", "premium", "insights", "®", "©",
+})
+
+
 def _extract_jd_context_for_theme(theme: str, jd_norm: str) -> Optional[str]:
     """
-    Find a short, specific clause from the JD that explains why this theme matters.
+    Find a short, specific clause from the actual job description (not LinkedIn UI noise).
     Returns a phrase of 6-12 words, or None if nothing specific found.
     """
     sentences = re.split(r"[.!?;\n]", jd_norm)
     for sent in sentences:
         sent = sent.strip()
-        if theme in sent and len(sent) > 15:
-            words = sent.split()
-            clause = " ".join(words[:12]).strip(",-: ")
-            if len(clause) > 20:
-                return clause
+        if theme not in sent or len(sent) < 15:
+            continue
+        # Skip sentences that are clearly LinkedIn UI / sidebar noise
+        if any(noise in sent for noise in _JD_NOISE_SIGNALS):
+            continue
+        # Skip sentences with digit-heavy patterns (follower counts, job counts)
+        if re.search(r"\b\d{3,}\b", sent):
+            continue
+        words = sent.split()
+        clause = " ".join(words[:12]).strip(",-: ")
+        if len(clause) > 20:
+            return clause
     return None
 
 
