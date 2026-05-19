@@ -1424,7 +1424,7 @@ async function runCopilot() {
       ${notionFailHtml}
       <div class="jc-score-hero">
         <div class="jc-score-number">${score}${dmIcon}</div>
-        <div class="jc-cta-btn ${ctaClass}">${ctaLabel}</div>
+        <button class="jc-cta-btn ${ctaClass}" id="jcCtaBtn">${ctaLabel}</button>
       </div>
 
       <div class="jc-resume-row">
@@ -1450,6 +1450,20 @@ async function runCopilot() {
         ${outreachHtml}
       </div>
     `;
+
+    // CTA button — open the job page to apply
+    const ctaBtn = document.getElementById("jcCtaBtn");
+    if (ctaBtn) {
+      const jobUrl = job.source_url || job.normalized_job_url || "";
+      if (jobUrl) {
+        ctaBtn.style.cursor = "pointer";
+        ctaBtn.addEventListener("click", () => {
+          chrome.tabs.create({ url: jobUrl });
+        });
+      } else {
+        ctaBtn.style.cursor = "default";
+      }
+    }
 
     // Toggle collapsed section
     document.getElementById("jcMoreToggle").addEventListener("click", () => {
