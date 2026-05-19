@@ -1475,6 +1475,22 @@ def score_job(
             boosts["user_theme_boost"] = _theme_boost
             print(f"[SCORING] user_theme_boost: +{_theme_boost}")
 
+    # Profile alignment check: penalize when user has themes set but none match JD.
+    # Prevents RevOps-biased base scores from over-rewarding mismatched profiles.
+    if user_profile is not None:
+        _align_themes = getattr(user_profile, "background_themes", None) or []
+        if len(_align_themes) >= 2:
+            _matching = sum(1 for t in _align_themes if t.strip().lower() in desc_norm)
+            _ratio = _matching / len(_align_themes)
+            if _ratio == 0:
+                score -= 12
+                deductions["profile_theme_mismatch"] = -12
+                print(f"[SCORING] profile_theme_mismatch: 0/{len(_align_themes)} themes matched, -12")
+            elif _ratio < 0.25:
+                score -= 7
+                deductions["profile_theme_mismatch"] = -7
+                print(f"[SCORING] profile_theme_mismatch: {_matching}/{len(_align_themes)} themes matched, -7")
+
     # Resume overlap boost: signal terms from uploaded resume matched against JD.
     # Stacks with theme boost; downstream caps prevent over-inflation.
     if user_profile is not None:

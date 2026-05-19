@@ -184,21 +184,26 @@
       /* ── Collapsed section ───────────────────────────────── */
       .jc-more-toggle {
         width: 100%;
-        background: none;
+        background: #f9fafb;
         border: none;
-        border-top: 1px solid #f0f0f0;
-        margin-top: 12px;
-        padding: 10px 0 0;
-        font-size: 11px;
-        color: #9ca3af;
+        border-top: 1px solid #e5e7eb;
+        border-radius: 0 0 8px 8px;
+        margin-top: 14px;
+        padding: 10px 0;
+        font-size: 12px;
+        color: #6b7280;
         cursor: pointer;
         text-align: center;
         display: flex;
         align-items: center;
         justify-content: center;
-        gap: 4px;
+        gap: 5px;
+        transition: background 0.15s;
       }
-      .jc-more-toggle:hover { color: #6b7280; }
+      .jc-more-toggle:hover {
+        background: #f3f4f6;
+        color: #374151;
+      }
       .jc-more-panel { display: none; margin-top: 10px; }
       .jc-more-panel.open { display: block; }
 

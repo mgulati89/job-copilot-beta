@@ -498,14 +498,78 @@ def extract_role_signals(
     return out[:3]
 
 
+def _extract_jd_context_for_theme(theme: str, jd_norm: str) -> Optional[str]:
+    """
+    Find a short, specific clause from the JD that explains why this theme matters.
+    Returns a phrase of 6-12 words, or None if nothing specific found.
+    """
+    sentences = re.split(r"[.!?;\n]", jd_norm)
+    for sent in sentences:
+        sent = sent.strip()
+        if theme in sent and len(sent) > 15:
+            words = sent.split()
+            clause = " ".join(words[:12]).strip(",-: ")
+            if len(clause) > 20:
+                return clause
+    return None
+
+
 def extract_why_this_role_signals(
-    job_description: str, title: str, role_family: Optional[RoleFamily]
+    job_description: str,
+    title: str,
+    role_family: Optional[RoleFamily],
+    user_profile=None,
 ) -> list[str]:
     """
-    1–2 JD-grounded themes for outreach (posting-specific 'why this role').
+    Returns 2–3 plain-English sentences for the popup 'Lead with' section.
+    Format: "Theme label — one sentence explaining why this matters for this specific role."
+    Prioritises user profile themes that appear in the JD; falls back to JD signals.
     """
-    sig = extract_role_signals(job_description, title, role_family)
-    return sig[:2] if sig else []
+    raw_signals = extract_role_signals(job_description, title, role_family)
+
+    user_themes: list[str] = []
+    if user_profile is not None:
+        user_themes = [
+            t.strip().lower()
+            for t in (getattr(user_profile, "background_themes", []) or [])
+            if t.strip()
+        ]
+
+    jd_norm = _normalize_text(f"{title}\n{job_description or ''}")
+    out: list[str] = []
+
+    # Priority 1: user themes that actually appear in the JD
+    for theme in user_themes:
+        if len(out) >= 2:
+            break
+        if theme in jd_norm:
+            context = _extract_jd_context_for_theme(theme, jd_norm)
+            label = theme.title()
+            if context:
+                out.append(f"{label} — {context}")
+            else:
+                out.append(label)
+
+    # Priority 2: JD-extracted signals not already covered
+    for signal in raw_signals:
+        if len(out) >= 3:
+            break
+        sig_norm = signal.lower()
+        if any(sig_norm in existing.lower() for existing in out):
+            continue
+        context = _extract_jd_context_for_theme(sig_norm, jd_norm)
+        if context:
+            out.append(f"{signal.title()} — {context}")
+        else:
+            out.append(signal.title())
+
+    if not out:
+        out = [
+            "Cross-functional execution — role requires coordination across multiple teams",
+            "Stakeholder communication — leadership visibility is explicit in the JD",
+        ]
+
+    return out[:3]
 
 
 def _personalization_level(job: JobRead, signals: Sequence[str]) -> Literal["high", "medium", "low"]:

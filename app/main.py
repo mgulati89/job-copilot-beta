@@ -726,7 +726,8 @@ def score_job_endpoint(payload: ScoreJobRequest) -> ScoreJobResponse:
         user_profile=payload.user_profile,
     )
     themes = extract_why_this_role_signals(
-        payload.job_description, payload.title, raw.get("role_family")
+        payload.job_description, payload.title, raw.get("role_family"),
+        user_profile=payload.user_profile,
     )
     return ScoreJobResponse(**raw, lead_with_themes=themes)
 
@@ -762,7 +763,8 @@ def score_and_create_job(payload: ScoreJobRequest, response: Response):
                 )
                 now = datetime.now(timezone.utc)
                 _themes_refresh = extract_why_this_role_signals(
-                    payload.job_description, title_eff, scored_raw.get("role_family")
+                    payload.job_description, title_eff, scored_raw.get("role_family"),
+                    user_profile=payload.user_profile,
                 )
                 refreshed = by_lid.model_copy(
                     update={
@@ -829,7 +831,8 @@ def score_and_create_job(payload: ScoreJobRequest, response: Response):
             user_profile=payload.user_profile,
         )
         _lead_themes = extract_why_this_role_signals(
-            payload.job_description, title_eff, _raw_scored.get("role_family")
+            payload.job_description, title_eff, _raw_scored.get("role_family"),
+            user_profile=payload.user_profile,
         )
         scored = ScoreJobResponse(**_raw_scored, lead_with_themes=_lead_themes)
 
